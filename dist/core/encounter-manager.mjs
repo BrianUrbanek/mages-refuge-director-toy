@@ -11,6 +11,8 @@ import { composeGroup } from "./group-composer.mjs";
 import { FuelLedger } from "./fuel-ledger.mjs";
 import { selectPortal, matchesPortalOpportunity } from "./portal-selection.mjs";
 import { EncounterList, validateSelection } from "./encounter-list.mjs";
+import { compileEncounterOpportunities } from "./encounter-opportunities.mjs";
+import { foldFinalTail } from "./composition-budget.mjs";
 export { composeGroup } from "./group-composer.mjs";
 export class EncounterManager {
   #config;
@@ -25,10 +27,13 @@ export class EncounterManager {
     this.runtime = Object.freeze({
       engineRecoverySeconds: 1,
       warningLeadSeconds: 1.1,
+      budgetAwareComposition: false,
       ...clone(runtime),
     });
     validateAmount(this.runtime.engineRecoverySeconds);
     validateAmount(this.runtime.warningLeadSeconds);
+    if (typeof this.runtime.budgetAwareComposition !== "boolean")
+      throw new Error("Invalid budget-aware composition setting");
     this.#config = clone(config);
     this.#fuel = new FuelLedger();
     this.#selector = new EncounterList(selectionSeed);
@@ -42,6 +47,7 @@ export class EncounterManager {
       ended: false,
       finalSpend: false,
       finalComplete: false,
+      budgetComplete: false,
       error: null,
       waitReason: "ready",
       planSerial: 0,
@@ -84,6 +90,7 @@ export class EncounterManager {
   }
   addPotential(amount, source) {
     this.#fuel.add(amount, source);
+    if (amount > 0) this.budgetComplete = false;
     this.emit("fuel-added", { amount, source });
   }
   transfer(amount, source = null, reason = "explicit") {
@@ -146,7 +153,7 @@ export class EncounterManager {
     return true;
   }
   requestSpawn() {
-    if (this.ended || this.finalComplete) return;
+    if (this.ended || this.finalComplete || this.budgetComplete) return;
     this.pending = true;
     this.emit("trigger-requested", { planId: this.next?.id });
   }
@@ -165,21 +172,55 @@ export class EncounterManager {
     this.pending = false;
     this.finalSpend = true;
     this.finalComplete = false;
+    this.budgetComplete = false;
     this.error = null;
     this.emit("final-spend-start", { reason });
     this.prepare();
     return true;
   }
   prepare() {
-    if (this.ended || this.next || this.finalComplete || this.error) return;
+    if (
+      this.ended ||
+      this.next ||
+      this.finalComplete ||
+      this.budgetComplete ||
+      this.error
+    )
+      return;
+    if (this.runtime.budgetAwareComposition && !this.introduced) return;
     if (this.#config.selection && !this.portals.length && !this.finalSpend)
       return;
-    let p;
+    const total = this.available + this.potential,
+      budget = this.runtime.budgetAwareComposition ? total : Infinity;
+    let p,
+      cheapest = Infinity;
+    if (this.runtime.budgetAwareComposition && !this.finalSpend) {
+      const options = this.#config.selection
+        ? [
+            ...compileEncounterOpportunities(
+              this.#config.selection,
+              this.#config,
+              this.portals,
+              this.ordinal,
+            ).resolved.values(),
+          ].filter((g) => !g.reshuffle)
+        : [composeGroup(this.#config, this.ordinal)].filter(
+            (g) => g && !g.error,
+          );
+      // Missing portal/content opportunities are configuration waits, not exhaustion.
+      if (!options.length) {
+        this.error = "No valid encounter opportunities";
+        this.emit("composition-error", { message: this.error });
+        return;
+      }
+      cheapest = Math.min(...options.map((g) => g.cost));
+    }
     if (this.#config.selection && !this.finalSpend) {
       const result = this.#selector.select(
         this.#config,
         this.portals,
         this.ordinal,
+        budget,
       );
       for (const event of result.events) {
         const { type, ...data } = event;
@@ -191,7 +232,32 @@ export class EncounterManager {
         this.#config,
         this.ordinal,
         this.finalSpend ? this.available : null,
+        budget,
       );
+    if (this.runtime.budgetAwareComposition && !this.finalSpend) {
+      if (p?.error) {
+        // Terminal residue may relax authored roles; it still obeys hard pack limits.
+        p = composeGroup(this.#config, this.ordinal, total);
+        if (p) p.terminalComposition = true;
+      }
+      if (!p) {
+        this.budgetComplete = true;
+        this.pending = false;
+        this.emit("fuel-drained", {
+          unused: total,
+          potential: this.potential,
+          available: this.available,
+        });
+        return;
+      }
+      p = foldFinalTail(this.#config, p, total, cheapest);
+      if (p.foldedFuel > 0)
+        p.foldedTransferred = this.transfer(
+          p.foldedFuel / 2,
+          null,
+          "final-tail",
+        );
+    }
     if (p === null) {
       this.finalComplete = true;
       this.pending = false;
@@ -366,6 +432,7 @@ export class EncounterManager {
       portals: this.portals,
       finalSpend: this.finalSpend,
       finalComplete: this.finalComplete,
+      budgetComplete: this.budgetComplete,
       ended: this.ended,
       wait: this.wait,
       waitReason: this.waitReason,

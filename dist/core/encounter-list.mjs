@@ -77,7 +77,7 @@ export class EncounterList {
   constructor(seed = 1) {
     this.#random = new SeededRandom(seed);
   }
-  select(config, portals, ordinal = 0) {
+  select(config, portals, ordinal = 0, totalBudget = Infinity) {
     validateSelection(config);
     const s = config.selection,
       { resolved, excluded } = compileEncounterOpportunities(
@@ -85,6 +85,7 @@ export class EncounterList {
         config,
         portals,
         ordinal,
+        totalBudget,
       );
     const key = s.id + "|" + s.mode + "|" + JSON.stringify(s.cards);
     this.#active = key;

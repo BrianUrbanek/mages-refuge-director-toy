@@ -64,8 +64,13 @@ export interface EncounterConfig {
 export interface DirectorRuntimeOptions {
   engineRecoverySeconds?: number;
   warningLeadSeconds?: number;
+  /** Compose within Available + Potential and fold otherwise unspendable tails. */
+  budgetAwareComposition?: boolean;
 }
 export interface Group {
+  foldedFuel?: number;
+  foldedTransferred?: number;
+  terminalComposition?: boolean;
   standalone?: boolean;
   groupId?: string;
   groupTags?: string[];
@@ -130,6 +135,7 @@ export interface EncounterSnapshot {
   portals: Portal[];
   finalSpend: boolean;
   finalComplete: boolean;
+  budgetComplete: boolean;
   ended: boolean;
   wait: string;
   waitReason:
@@ -152,6 +158,7 @@ export declare function composeGroup(
   config: EncounterConfig,
   ordinal?: number,
   finalBudget?: number | null,
+  totalBudget?: number,
 ): Omit<Group, "id"> | { error: string } | null;
 export declare class EncounterManager {
   constructor(args: {

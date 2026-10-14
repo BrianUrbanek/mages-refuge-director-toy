@@ -113,6 +113,27 @@ export class CrowdView {
           e.actorId === a.id &&
           snapshot.time - e.time < 0.12,
       );
+      // Scripted leaders stand out even when their point-scaled block is smaller.
+      // This is purely visual: the halo has no combat or Director effects.
+      if (a.leader && !a.key?.startsWith("guardian-")) {
+        const pulse = 0.5 + 0.5 * Math.sin(snapshot.time * 2.4),
+          radius = size * (1.1 + pulse * 0.12),
+          halo = ctx.createRadialGradient(x, y, size * 0.3, x, y, radius);
+        halo.addColorStop(0, "rgba(255, 210, 120, 0.30)");
+        halo.addColorStop(0.55, "rgba(255, 184, 80, 0.16)");
+        halo.addColorStop(1, "rgba(255, 184, 80, 0)");
+        ctx.save();
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255, 224, 160, ${0.45 + pulse * 0.2})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.82 + pulse * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
       ctx.save();
       ctx.translate(x, y);
       if (a.tags.includes("ranged")) ctx.rotate(Math.PI / 4);

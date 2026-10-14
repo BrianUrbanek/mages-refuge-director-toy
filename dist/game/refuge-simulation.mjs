@@ -5,6 +5,7 @@ import { createRandom } from "./random.mjs";
 import { ZoneHost } from "./zone-host.mjs";
 import { CombatModel } from "./combat-model.mjs";
 import { resolvePlayerStats } from "./player-stats.mjs";
+import { scriptedLeaderStats } from "./scripted-leaders.mjs";
 import { steadyReservesReady, BURST_STRATEGIES } from "./player-policy.mjs";
 import { createSpawnAdapter, canSpawnAtPortal } from "./spawn-adapter.mjs";
 import { EncounterManager } from "../core/encounter-manager.mjs";
@@ -28,6 +29,7 @@ export class RefugeSimulation {
     if (!BURST_STRATEGIES[this.burstStrategy])
       throw new Error("Invalid last-charge strategy");
     this.selectionMode = opts.selectionMode ?? "random";
+    this.bossTiming = { longSeconds: 10, shortSeconds: 6, ...opts.bossTiming };
     this.reset();
   }
   reset(sanctum = false) {
@@ -82,6 +84,7 @@ export class RefugeSimulation {
     this.zone = new ZoneHost(
       AREAS.filter((a) => (sanctum ? a.id === "liath" : a.id !== "liath")),
       this.depth,
+      this.bossTiming,
     );
     this.manager = new EncounterManager({
       config: configFor(
@@ -92,7 +95,7 @@ export class RefugeSimulation {
         this.selectionMode,
       ),
       selectionSeed: this.seed,
-      runtime: { warningLeadSeconds: 6 },
+      runtime: { warningLeadSeconds: 6, budgetAwareComposition: true },
     });
     this.consumeEvents();
     this.journal.record(
@@ -251,7 +254,7 @@ export class RefugeSimulation {
     return this.zone.rooms;
   }
   get sweepComplete() {
-    return this.manager.finalComplete;
+    return this.manager.finalComplete || this.manager.budgetComplete;
   }
   get draining() {
     return this.manager.finalSpend;
@@ -415,13 +418,7 @@ export class RefugeSimulation {
       this.note(
         `Zone activated: ${this.areaDef().budget} points · passive flow ${config.flowRate}/s.`,
       );
-    if (this.lastSub() && area !== "entry") {
-      this.spawnLeader(
-        area,
-        area === "boss" ? this.bossChoice : MENUS[area].name,
-      );
-      this.manager.beginFinalSpend("Boss chamber: " + this.areaDef().name);
-    }
+    this.updateBoss();
     this.consumeEvents();
     return true;
   }
@@ -431,17 +428,12 @@ export class RefugeSimulation {
     return portal ? { ...portal.position } : { x: 0.5, y: 0.3 };
   }
   spawnLeader(key, name, metadata = {}) {
-    const points = key.startsWith("guardian-") ? 4 : 35,
-      hp = points * 22;
+    const stats = scriptedLeaderStats(key);
     this.actors.push({
       id: ++this.serial,
       key,
       name,
-      hp,
-      maxHp: hp,
-      cost: points,
-      fuelEquivalent: points,
-      directorFuelCost: 0,
+      ...stats,
       tier: "champion",
       menu: this.areaDef().menu,
       tags: ["boss"],
@@ -454,10 +446,45 @@ export class RefugeSimulation {
       ...metadata,
     });
     this.effect("boss", { name });
+    this.journal.record(
+      this.t,
+      "arrival",
+      `Scripted leader arrived · ${name} · ${stats.fuelEquivalent} equivalent · ${stats.hp} HP · ${(stats.cost * this.pressurePerPoint * stats.damageMultiplier).toFixed(2)} DPS · outside Director fuel`,
+      { scriptedLeader: true, key, ...stats },
+      this.context(),
+    );
     this.journal.combat.arrival(this.t, this.observation(), this.context(), {
       scriptedLeaders: 1,
     });
     this.combat.onArrival();
+  }
+
+  updateBoss() {
+    const zone = this.zone.currentZone;
+    if (!zone || zone.id === "entry") return;
+    const clock = zone.bossClock,
+      before = clock.snapshot();
+    const due = clock.update(this.t, {
+      lastRoomEntered: this.lastSub() && this.actors.length > 0,
+      zoneComplete:
+        !this.actors.length &&
+        !this.manager.next &&
+        !this.manager.dispatch &&
+        this.sweepComplete,
+    });
+    if (clock.deadline !== before.deadline)
+      this.journal.record(
+        this.t,
+        "progression",
+        `Boss countdown · ${clock.mode} · ${Math.max(0, clock.deadline - this.t).toFixed(1)}s remaining`,
+        clock.snapshot(),
+        this.context(),
+      );
+    if (due)
+      this.spawnLeader(
+        this.area,
+        this.area === "boss" ? this.bossChoice : MENUS[this.area].name,
+      );
   }
 
   destinations() {
@@ -672,6 +699,9 @@ export class RefugeSimulation {
         : "Victory · spending the final fuel.";
     if (!this.autoAdvance || this.hold)
       return "Holding position · combat, passive regeneration and charge recovery continue.";
+    const clock = this.zone.currentZone.bossClock;
+    if (clock.deadline !== null && !clock.spawned)
+      return `Lieutenant arriving in ${Math.max(0, clock.deadline - this.t).toFixed(1)}s · ${clock.mode === "short" ? "zone opposition cleared" : "last-chamber countdown"}.`;
     if (!this.gateReady())
       return "Lieutenant checkpoint · defeat the lieutenant and finish spending fuel.";
     if (this.approach !== "charge" && this.dispatch)
@@ -722,6 +752,7 @@ export class RefugeSimulation {
       return;
     }
     this.zone.observeQuiet(this.manager, this.t);
+    this.updateBoss();
     this.peakCrowd = Math.max(this.peakCrowd, this.actors.length);
     if (!this.actors.length) this.restTime += dt;
     this.history.push({
@@ -864,7 +895,7 @@ export class RefugeSimulation {
   exportTrace() {
     this.journal.flushPassive(this.t, this.context());
     return {
-      spec: "Mage's Refuge v16 · Encounter Director selection v13",
+      spec: "Mage's Refuge v17 · Encounter Director selection v17",
       settings: {
         depth: this.depth,
         personality: this.personality,
@@ -874,6 +905,7 @@ export class RefugeSimulation {
         route: this.route,
         seed: this.seed,
         playerStats: this.playerStats,
+        bossTiming: this.bossTiming,
       },
       results: this.runMetrics(),
       director: this.manager.snapshot(),
@@ -883,7 +915,7 @@ export class RefugeSimulation {
   }
   exportJournalLog() {
     return (
-      `Mage's Refuge v16 · ${this.progression} · ${this.burstStrategy} charges · ${this.personality} · seed ${this.seed}\n` +
+      `Mage's Refuge v17 · ${this.progression} · ${this.burstStrategy} charges · ${this.personality} · seed ${this.seed}\n` +
       formatJournalLog(this.journal.entries)
     );
   }

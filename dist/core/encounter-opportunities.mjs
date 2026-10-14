@@ -12,7 +12,13 @@ function candidates(values, tags = [], policy = "enforce") {
         : 0) || compareIds(a.id, b.id),
   );
 }
-export function resolveEncounterCard(card, config, portals, ordinal = 0) {
+export function resolveEncounterCard(
+  card,
+  config,
+  portals,
+  ordinal = 0,
+  totalBudget = Infinity,
+) {
   if (card.kind === "reshuffle") return { reshuffle: true };
   if (card.kind === "normal") {
     if (!portals.some((p) => p.eligible && !p.breachable)) return null;
@@ -31,6 +37,8 @@ export function resolveEncounterCard(card, config, portals, ordinal = 0) {
         preferred: [...(card.preferredTags ?? []), ...config.preferred],
       },
       ordinal,
+      null,
+      totalBudget,
     );
     return group?.error ? null : group;
   }
@@ -51,7 +59,7 @@ export function resolveEncounterCard(card, config, portals, ordinal = 0) {
   );
   for (const definition of groups) {
     const group = composeStandalone(config, definition);
-    if (!group) continue;
+    if (!group || group.cost > totalBudget + 1e-7) continue;
     // Ordered preferences then ordinal ID; do not treat temporary host occupancy as invalidity.
     routes.sort((a, b) => {
       if (card.portalTagPolicy === "prefer") {
@@ -85,11 +93,18 @@ export function compileEncounterOpportunities(
   config,
   portals,
   ordinal = 0,
+  totalBudget = Infinity,
 ) {
   const resolved = new Map(),
     excluded = [];
   for (const card of selection.cards) {
-    const group = resolveEncounterCard(card, config, portals, ordinal);
+    const group = resolveEncounterCard(
+      card,
+      config,
+      portals,
+      ordinal,
+      totalBudget,
+    );
     if (group) resolved.set(card.id, group);
     else excluded.push(card.id);
   }

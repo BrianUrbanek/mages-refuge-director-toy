@@ -1,12 +1,18 @@
 import { fitsPackLimits } from "./composition-limits.mjs";
 import { clone, compareIds } from "./contracts.mjs";
+import { rankEnemy } from "./composition-budget.mjs";
 const cost = (xs) => xs.reduce((n, e) => n + e.cost, 0),
   union = (xs) => new Set(xs.flatMap((e) => e.tags));
-export function composeGroup(config, ordinal = 0, finalBudget = null) {
+export function composeGroup(
+  config,
+  ordinal = 0,
+  finalBudget = null,
+  totalBudget = Infinity,
+) {
   const catalog = config.enemies,
     target =
       finalBudget === null
-        ? config.targets[ordinal % config.targets.length]
+        ? Math.min(totalBudget, config.targets[ordinal % config.targets.length])
         : Math.min(finalBudget, config.finalTarget ?? 32),
     rules = config.rules;
   const fits = (p) => fitsPackLimits(p, rules) && cost(p) <= target + 1e-7;
@@ -76,19 +82,7 @@ export function composeGroup(config, ordinal = 0, finalBudget = null) {
   while (pack.length < rules.maxMembers) {
     const candidates = catalog.filter((e) => legal([...pack, e]));
     if (!candidates.length) break;
-    candidates.sort((a, b) => {
-      for (const t of config.preferred) {
-        const d = Number(b.tags.includes(t)) - Number(a.tags.includes(t));
-        if (d) return d;
-      }
-      for (const [tag, direction] of config.local || []) {
-        const d =
-          direction *
-          (Number(b.tags.includes(tag)) - Number(a.tags.includes(tag)));
-        if (d) return d;
-      }
-      return b.cost - a.cost || compareIds(a.id, b.id);
-    });
+    candidates.sort((a, b) => rankEnemy(config, a, b));
     pack.push(candidates[0]);
   }
   if (!pack.length)

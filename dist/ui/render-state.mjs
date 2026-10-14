@@ -273,7 +273,7 @@ export function createRenderer(document) {
       : toy.ended
         ? "Activity ended"
         : toy.sweepComplete
-          ? "Final spend complete"
+          ? "Zone budget exhausted"
           : "No prepared group";
     $("planMembers").innerHTML = p
       ? Object.entries(
@@ -294,8 +294,8 @@ export function createRenderer(document) {
       ? "Director stopped"
       : toy.failed
         ? "Simulation stopped"
-        : toy.draining && toy.sweepComplete
-          ? "Queue flushed · residue " + fmt(toy.available)
+        : toy.sweepComplete
+          ? "No more groups · unused " + fmt(toy.available + toy.potential)
           : toy.director.waitReason === "engine-recovery"
             ? "Affordable · engine recovery " +
               fmt(toy.director.recoveryRemaining) +
@@ -318,7 +318,7 @@ export function createRenderer(document) {
         (p.standalone
           ? " Standalone authored group; no padding."
           : p.core < 0
-            ? " Affordable ad hoc final spend."
+            ? " Affordable terminal composition."
             : `. Core ${p.core + 1}. All required tags covered. Average-cost and member limits applied.`)
       : "";
     $("decisionTitle").textContent = toy.finalDefeated

@@ -161,6 +161,14 @@ export class RunJournal {
       );
     if (type === "composition-error")
       this.record(time, "director", event.message, event, context);
+    if (type === "fuel-drained")
+      this.record(
+        time,
+        "director",
+        `No more groups scheduled · ${event.unused.toFixed(2)} unspendable fuel remains`,
+        event,
+        context,
+      );
   }
 
   observe(time, state, context, force = false) {

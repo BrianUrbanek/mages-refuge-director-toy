@@ -201,8 +201,9 @@ test("restart clears active combat telemetry and retains six second warnings", (
   s.restart();
   assert.equal(s.journal.combat.active, null);
   assert.equal(s.manager.runtime.warningLeadSeconds, 6);
-  assert.match(s.exportJournalLog(), /Mage's Refuge v16/);
+  assert.match(s.exportJournalLog(), /Mage's Refuge v17/);
 });
 console.log(
   `${checks} forecast-aware approaches and combat-journal checks passed.`,
 );
+

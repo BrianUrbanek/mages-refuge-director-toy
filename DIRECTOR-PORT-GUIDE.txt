@@ -1,3 +1,6 @@
+CURRENT V17 NOTE: see the V17 contract appendix at the end. Earlier final-spend
+text describes the retained legacy API, not current boss behavior.
+
 V13 encounter selection update, 13 October 2026
 The current core includes reusable ordered/random encounter lists, pure capability
 compilation and standalone group composition. Read SELECTION-PORT-GUIDE.txt for
@@ -210,3 +213,30 @@ roles still share the cost-based abstract damage model; no new role mechanics,
 player-power sliders or room-release permutations were added in this cleanup.
 The original design DOCX and prior release packages remain historical sources;
 this guide and current typed API describe the executable V9 contract.
+
+V17 -- REMAINING BUDGET AND BOSS GO-TIME (supersedes boss flush / 35-point rules)
+The demo opts into Director runtime budgetAwareComposition:true. Core default
+false retains legacy consumers/golden vectors; an extracting host should enable
+this option for the current design. Composition is capped by Available+Potential.
+Only newly composed groups are resized; frozen N+1 remains frozen. Expandable
+groups absorb a projected remaining tail smaller than the cheapest currently
+eligible composed option. Preserve the selected core; enforce hard pack limits.
+Transfer half the actual added composition cost immediately, capped by Potential.
+Standalone breaches never inflate. If no listed recipe fits remaining balance,
+compose an affordable terminal pack; unspendable residue remains recorded.
+budgetComplete means no next fundable group, not no living opposition. New fuel
+resumes preparation. Missing portal/content opportunities are errors, not clears.
+beginFinalSpend remains a legacy explicit API; bosses no longer call it.
+
+Boss timing belongs to ZoneHost/BossClock, outside the Director. Demo defaults:
+long 10s after last-room entry with living opposition; short 6s after BOTH no
+living actors and no scheduled/fundable groups, in ANY room. A lull is insufficient.
+Completing during a long timer subtracts long-short (4s) from its old deadline;
+it never starts a fresh six seconds and can become immediately due. One boss per
+zone. Boss arrival preserves ledger and N+1. Entry zone has no scripted leader.
+Boss stats: 20 equivalent, 550 HP, damageMultiplier .8 -> baseline DPS 3.84;
+zero Director fuel cost. Guardians remain 4 equivalent, 88 HP, .96 DPS.
+Default targeting and spill: supports first, then lowest remaining HP, stable ID
+ties. Explicit clicks/elite policy still choose the initial eligible target.
+Scripted arrivals are stated in Journal. Display-only gold halo identifies bosses.
+Production Last Epoch integration and JavaScript-to-C# translation remain untested.

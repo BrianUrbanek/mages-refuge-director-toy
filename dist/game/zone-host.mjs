@@ -1,11 +1,13 @@
 /** Demo level adapter: rooms, zone activation and physical portal meaning never enter the ED. */
+import { BossClock } from "./boss-clock.mjs";
 export class ZoneHost {
-  constructor(areas, depth = 1) {
+  constructor(areas, depth = 1, bossTiming = {}) {
     const scale = 1 + 0.12 * (depth - 1);
     this.scale = scale;
     this.zones = areas.map((a) => ({
       ...structuredClone(a),
       activated: false,
+      bossClock: new BossClock(bossTiming),
       budget: a.budget * scale,
       rooms: a.parts.map(([name, entryReleaseRequest], index) => ({
         id: a.id + ":" + index,
@@ -115,11 +117,12 @@ export class ZoneHost {
       status.dispatch ||
       status.error ||
       status.livingOpposition ||
-      (!status.next && !status.finalComplete)
+      (!status.next && !status.finalComplete && !status.budgetComplete)
     )
       return;
     if (
       !status.finalComplete &&
+      !status.budgetComplete &&
       status.potential + status.available + 1e-7 >= status.next.cost
     )
       return;
@@ -130,6 +133,12 @@ export class ZoneHost {
       }
   }
   snapshot() {
-    return structuredClone({ zones: this.zones, portals: this.portals });
+    return structuredClone({
+      zones: this.zones.map((z) => ({
+        ...z,
+        bossClock: z.bossClock.snapshot(),
+      })),
+      portals: this.portals,
+    });
   }
 }

@@ -11,6 +11,7 @@ export declare class EncounterList {
     config: EncounterConfig,
     portals: Portal[],
     ordinal?: number,
+    totalBudget?: number,
   ): {
     group?: Omit<Group, "id">;
     error?: string;

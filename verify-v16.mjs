@@ -126,18 +126,18 @@ test("strategy is visible in detached views results trace and causal Journal", (
   assert.match(s.exportJournalLog(), /priority charges/);
   assert.ok(s.journal.entries.some((e) => e.kind === "strategy"));
 });
-test("floor bosses use thirty-five equivalent and introduce or spend no Director fuel", () => {
+test("floor bosses use twenty equivalent with separate durability and damage and introduce or spend no Director fuel", () => {
   for (const key of ["a", "b1", "b2", "c", "boss", "liath"]) {
     const s = new RefugeSimulation({ autoAdvance: false });
     s.charges = 0;
     const before = s.manager.snapshot();
     s.spawnLeader(key, "Test floor boss");
     const a = s.actors[0];
-    assert.equal(a.cost, 35);
-    assert.equal(a.fuelEquivalent, 35);
+    assert.equal(a.cost, 20);
+    assert.equal(a.fuelEquivalent, 20);
     assert.equal(a.directorFuelCost, 0);
-    assert.equal(a.hp, 770);
-    assert.equal(s.incomingDps(), 8.4);
+    assert.equal(a.hp, 550);
+    assert.ok(Math.abs(s.incomingDps() - 3.84) < 1e-9);
     assert.deepEqual(s.manager.snapshot(), before);
   }
 });

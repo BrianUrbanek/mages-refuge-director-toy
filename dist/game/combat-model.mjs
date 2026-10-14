@@ -153,7 +153,10 @@ export class CombatModel {
     return this.actors.reduce((n, a) => n + a.cost, 0);
   }
   incomingDps() {
-    return this.livingCost() * this.pressurePerPoint;
+    return this.actors.reduce(
+      (n, a) => n + a.cost * this.pressurePerPoint * (a.damageMultiplier ?? 1),
+      0,
+    );
   }
   effectiveRegen() {
     // Quiet recovery affects health only; burst thresholds use base regeneration.
@@ -239,12 +242,7 @@ export class CombatModel {
       remaining -= damage;
       if (actor.hp > 0) break;
       from = point;
-      actor = this.targetPool().sort(
-        (a, b) =>
-          Math.hypot(a.position.x - point.x, a.position.y - point.y) -
-            Math.hypot(b.position.x - point.x, b.position.y - point.y) ||
-          a.id - b.id,
-      )[0];
+      actor = this.targetPool().sort((a, b) => a.hp - b.hp || a.id - b.id)[0];
     }
   }
   refillCharges(dt) {
@@ -281,7 +279,7 @@ export class CombatModel {
             (a.tier === "champion" ? 2 : a.tier === "elite" ? 1 : 0) ||
           a.id - b.id,
       );
-    else sorted.sort((a, b) => a.id - b.id);
+    else sorted.sort((a, b) => a.hp - b.hp || a.id - b.id);
     return sorted[0];
   }
   targetPool() {
