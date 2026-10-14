@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {EncounterManager,composeGroup} from './dist/core/encounter-manager.mjs';
+import {FuelLedger} from './dist/core/fuel-ledger.mjs';
+import {fixture} from './core-fixture.mjs';
+let checks=0;const test=(name,fn)=>{fn();checks++;console.log('PASS '+name);};
+test('private fuel and config are protected and committed groups are immutable',()=>{const m=new EncounterManager({config:fixture});const config=m.config;config.flowRate=999;assert.equal(m.config.flowRate,fixture.flowRate);assert.ok(Object.isFrozen(m.next));assert.ok(Object.isFrozen(m.next.members));assert.throws(()=>{m.next.cost=0;});assert.equal(m.fuel,undefined);});
+test('technical runtime settings are independent of menu changes',()=>{const m=new EncounterManager({config:fixture,runtime:{engineRecoverySeconds:.25}});m.updateConfig({...fixture,id:'changed',flowRate:1});assert.equal(m.runtime.engineRecoverySeconds,.25);assert.equal(m.config.engineRecoverySeconds,undefined);});
+test('fuel provenance prevents one source release from consuming another',()=>{const f=new FuelLedger();f.add(3,'first');f.add(20,'second');assert.equal(f.transfer(25,'first'),3);assert.equal(f.potential,20);assert.equal(f.available,3);f.verify();});
+test('declared incompatibility applies to authored cores and filler',()=>{const c={...fixture,cores:[['guard'],['healer']],preferred:[],rules:{...fixture.rules,incompatiblePairs:[['guard','healer']]}};const group=composeGroup(c);assert.ok(group.members.every(e=>e.id==='guard'));assert.equal(group.cost,8);});
+test('self incompatibility limits repeats, including final spending',()=>{const c={...fixture,cores:[['guard'],['healer']],preferred:[],rules:{...fixture.rules,incompatiblePairs:[['guard','guard'],['healer','healer']]}};for(const budget of [null,8]){const group=composeGroup(c,0,budget);assert.equal(group.members.length,2);assert.equal(group.cost,5);}});
+test('bad compatibility authoring is rejected before runtime mutation',()=>{const m=new EncounterManager({config:fixture}),before=m.snapshot();assert.throws(()=>m.updateConfig({...fixture,rules:{...fixture.rules,incompatiblePairs:[['guard','missing']]}}));assert.deepEqual(m.snapshot(),before);});
+console.log(checks+' isolated core component checks passed');

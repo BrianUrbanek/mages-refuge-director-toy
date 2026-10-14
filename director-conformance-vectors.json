@@ -1,0 +1,593 @@
+[
+  {
+    "name": "immediate-funded-arrival",
+    "config": {
+      "id": "example",
+      "menu": "guards",
+      "enemies": [
+        {
+          "id": "guard",
+          "name": "Guard",
+          "cost": 2,
+          "tags": [
+            "melee"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        },
+        {
+          "id": "healer",
+          "name": "Healer",
+          "cost": 3,
+          "tags": [
+            "support"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        }
+      ],
+      "cores": [
+        [
+          "guard",
+          "guard"
+        ]
+      ],
+      "required": [],
+      "preferred": [
+        "melee"
+      ],
+      "targets": [
+        8
+      ],
+      "finalTarget": 8,
+      "flowRate": 2,
+      "rules": {
+        "maxMembers": 8,
+        "maxChampions": 1,
+        "maxAverageCost": 4
+      }
+    },
+    "runtime": {
+      "engineRecoverySeconds": 1,
+      "warningLeadSeconds": 1
+    },
+    "actions": [
+      {
+        "type": "budget",
+        "id": "budget",
+        "operations": {
+          "add": 8,
+          "transfer": 8
+        }
+      },
+      {
+        "type": "tick",
+        "dt": 0
+      }
+    ],
+    "expected": {
+      "potential": 0,
+      "available": 0,
+      "spent": 8,
+      "nextCost": 8,
+      "waitReason": "funding",
+      "commits": [
+        {
+          "time": 0,
+          "cost": 8,
+          "portal": "front",
+          "members": [
+            "guard",
+            "guard",
+            "guard",
+            "guard"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "passive-forecast-to-funding",
+    "config": {
+      "id": "example",
+      "menu": "guards",
+      "enemies": [
+        {
+          "id": "guard",
+          "name": "Guard",
+          "cost": 2,
+          "tags": [
+            "melee"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        },
+        {
+          "id": "healer",
+          "name": "Healer",
+          "cost": 3,
+          "tags": [
+            "support"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        }
+      ],
+      "cores": [
+        [
+          "guard",
+          "guard"
+        ]
+      ],
+      "required": [],
+      "preferred": [
+        "melee"
+      ],
+      "targets": [
+        8
+      ],
+      "finalTarget": 8,
+      "flowRate": 2,
+      "rules": {
+        "maxMembers": 8,
+        "maxChampions": 1,
+        "maxAverageCost": 4
+      }
+    },
+    "runtime": {
+      "engineRecoverySeconds": 1,
+      "warningLeadSeconds": 1
+    },
+    "actions": [
+      {
+        "type": "budget",
+        "id": "budget",
+        "operations": {
+          "add": 8,
+          "transfer": 6
+        }
+      },
+      {
+        "type": "tick",
+        "dt": 0.01
+      },
+      {
+        "type": "tick",
+        "dt": 0.99
+      }
+    ],
+    "expected": {
+      "potential": 0,
+      "available": 0,
+      "spent": 8,
+      "nextCost": 8,
+      "waitReason": "funding",
+      "commits": [
+        {
+          "time": 1,
+          "cost": 8,
+          "portal": "front",
+          "members": [
+            "guard",
+            "guard",
+            "guard",
+            "guard"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "bonus-funding-during-forecast",
+    "config": {
+      "id": "example",
+      "menu": "guards",
+      "enemies": [
+        {
+          "id": "guard",
+          "name": "Guard",
+          "cost": 2,
+          "tags": [
+            "melee"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        },
+        {
+          "id": "healer",
+          "name": "Healer",
+          "cost": 3,
+          "tags": [
+            "support"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        }
+      ],
+      "cores": [
+        [
+          "guard",
+          "guard"
+        ]
+      ],
+      "required": [],
+      "preferred": [
+        "melee"
+      ],
+      "targets": [
+        8
+      ],
+      "finalTarget": 8,
+      "flowRate": 2,
+      "rules": {
+        "maxMembers": 8,
+        "maxChampions": 1,
+        "maxAverageCost": 4
+      }
+    },
+    "runtime": {
+      "engineRecoverySeconds": 1,
+      "warningLeadSeconds": 1
+    },
+    "actions": [
+      {
+        "type": "budget",
+        "id": "budget",
+        "operations": {
+          "add": 8,
+          "transfer": 6
+        }
+      },
+      {
+        "type": "tick",
+        "dt": 0.2
+      },
+      {
+        "type": "release",
+        "amount": 2
+      },
+      {
+        "type": "request"
+      },
+      {
+        "type": "tick",
+        "dt": 0
+      }
+    ],
+    "expected": {
+      "potential": 0,
+      "available": 0,
+      "spent": 8,
+      "nextCost": 8,
+      "waitReason": "funding",
+      "commits": [
+        {
+          "time": 0.2,
+          "cost": 8,
+          "portal": "front",
+          "members": [
+            "guard",
+            "guard",
+            "guard",
+            "guard"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "technical-recovery-after-trigger",
+    "config": {
+      "id": "example",
+      "menu": "guards",
+      "enemies": [
+        {
+          "id": "guard",
+          "name": "Guard",
+          "cost": 2,
+          "tags": [
+            "melee"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        },
+        {
+          "id": "healer",
+          "name": "Healer",
+          "cost": 3,
+          "tags": [
+            "support"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        }
+      ],
+      "cores": [
+        [
+          "guard",
+          "guard"
+        ]
+      ],
+      "required": [],
+      "preferred": [
+        "melee"
+      ],
+      "targets": [
+        8
+      ],
+      "finalTarget": 8,
+      "flowRate": 2,
+      "rules": {
+        "maxMembers": 8,
+        "maxChampions": 1,
+        "maxAverageCost": 4
+      }
+    },
+    "runtime": {
+      "engineRecoverySeconds": 1,
+      "warningLeadSeconds": 1
+    },
+    "actions": [
+      {
+        "type": "budget",
+        "id": "budget",
+        "operations": {
+          "add": 20,
+          "transfer": 20
+        }
+      },
+      {
+        "type": "tick",
+        "dt": 0
+      },
+      {
+        "type": "request"
+      },
+      {
+        "type": "tick",
+        "dt": 0.5
+      },
+      {
+        "type": "tick",
+        "dt": 0.5
+      }
+    ],
+    "expected": {
+      "potential": 0,
+      "available": 4,
+      "spent": 16,
+      "nextCost": 8,
+      "waitReason": "funding",
+      "commits": [
+        {
+          "time": 0,
+          "cost": 8,
+          "portal": "front",
+          "members": [
+            "guard",
+            "guard",
+            "guard",
+            "guard"
+          ]
+        },
+        {
+          "time": 1,
+          "cost": 8,
+          "portal": "front",
+          "members": [
+            "guard",
+            "guard",
+            "guard",
+            "guard"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "blocked-portal-then-immediate-arrival",
+    "config": {
+      "id": "example",
+      "menu": "guards",
+      "enemies": [
+        {
+          "id": "guard",
+          "name": "Guard",
+          "cost": 2,
+          "tags": [
+            "melee"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        },
+        {
+          "id": "healer",
+          "name": "Healer",
+          "cost": 3,
+          "tags": [
+            "support"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        }
+      ],
+      "cores": [
+        [
+          "guard",
+          "guard"
+        ]
+      ],
+      "required": [],
+      "preferred": [
+        "melee"
+      ],
+      "targets": [
+        8
+      ],
+      "finalTarget": 8,
+      "flowRate": 2,
+      "rules": {
+        "maxMembers": 8,
+        "maxChampions": 1,
+        "maxAverageCost": 4
+      }
+    },
+    "runtime": {
+      "engineRecoverySeconds": 1,
+      "warningLeadSeconds": 1
+    },
+    "actions": [
+      {
+        "type": "budget",
+        "id": "budget",
+        "operations": {
+          "add": 8,
+          "transfer": 8
+        }
+      },
+      {
+        "type": "portals",
+        "portals": []
+      },
+      {
+        "type": "tick",
+        "dt": 1
+      },
+      {
+        "type": "portals",
+        "portals": [
+          {
+            "id": "front",
+            "tags": [
+              "forward"
+            ],
+            "eligible": true
+          }
+        ]
+      },
+      {
+        "type": "tick",
+        "dt": 0
+      }
+    ],
+    "expected": {
+      "potential": 0,
+      "available": 0,
+      "spent": 8,
+      "nextCost": 8,
+      "waitReason": "funding",
+      "commits": [
+        {
+          "time": 1,
+          "cost": 8,
+          "portal": "front",
+          "members": [
+            "guard",
+            "guard",
+            "guard",
+            "guard"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "asset-readiness-without-fresh-warning",
+    "config": {
+      "id": "example",
+      "menu": "guards",
+      "enemies": [
+        {
+          "id": "guard",
+          "name": "Guard",
+          "cost": 2,
+          "tags": [
+            "melee"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        },
+        {
+          "id": "healer",
+          "name": "Healer",
+          "cost": 3,
+          "tags": [
+            "support"
+          ],
+          "tier": "normal",
+          "footprint": 1
+        }
+      ],
+      "cores": [
+        [
+          "guard",
+          "guard"
+        ]
+      ],
+      "required": [],
+      "preferred": [
+        "melee"
+      ],
+      "targets": [
+        8
+      ],
+      "finalTarget": 8,
+      "flowRate": 2,
+      "rules": {
+        "maxMembers": 8,
+        "maxChampions": 1,
+        "maxAverageCost": 4
+      }
+    },
+    "runtime": {
+      "engineRecoverySeconds": 1,
+      "warningLeadSeconds": 1
+    },
+    "actions": [
+      {
+        "type": "budget",
+        "id": "budget",
+        "operations": {
+          "add": 8,
+          "transfer": 8
+        }
+      },
+      {
+        "type": "assets",
+        "ready": false
+      },
+      {
+        "type": "tick",
+        "dt": 1
+      },
+      {
+        "type": "assets",
+        "ready": true
+      },
+      {
+        "type": "tick",
+        "dt": 0
+      }
+    ],
+    "expected": {
+      "potential": 0,
+      "available": 0,
+      "spent": 8,
+      "nextCost": 8,
+      "waitReason": "funding",
+      "commits": [
+        {
+          "time": 1,
+          "cost": 8,
+          "portal": "front",
+          "members": [
+            "guard",
+            "guard",
+            "guard",
+            "guard"
+          ]
+        }
+      ]
+    }
+  }
+]

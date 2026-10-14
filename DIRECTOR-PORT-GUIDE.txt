@@ -1,0 +1,212 @@
+V13 encounter selection update, 13 October 2026
+The current core includes reusable ordered/random encounter lists, pure capability
+compilation and standalone group composition. Read SELECTION-PORT-GUIDE.txt for
+the added data/adapter contract. Current totals: 188 full checks, 75 extracted.
+All earlier V9-V12 verification notes below are historical.
+
+V12 host-only player tuning, 13 October 2026
+Director core and its 42 standalone checks are unchanged. Current full runner
+has 147 checks. See CHANGELOG-V12.txt for stepped stats and capacity rules.
+Earlier verification notes below are historical.
+
+V11 host-only potion update, 13 October 2026
+Director core and its 42 standalone checks are unchanged. Current full runner
+has 127 checks. See CHANGELOG-V11.txt for automatic potions and leader refills.
+V10 verification notes below are historical.
+
+V10 host-only update, 13 October 2026
+Director core and its 42 standalone checks are unchanged. Current full runner
+has 112 checks. Player approaches and quiet regen changed; see CHANGELOG-V10.txt.
+The V9 detail below remains the Director contract; its full-suite totals are
+historical. Default uninterrupted runs no longer pass the former completion
+expectations. Progression-success fixtures explicitly use power 72.
+
+Encounter Director extraction and port guide
+13 October 2026
+
+The director is a standalone deterministic library. Copy dist/core as a unit.
+It has no imports from the game, UI, display, browser storage or telemetry.
+It accepts plain resolved content, opaque source IDs, tagged portal IDs, host
+time and a spawn adapter. It emits data events and detached snapshots.
+
+The implementation is JavaScript, not a drop-in C# or Unity component. The
+algorithm and module boundaries can be retained during a C# translation.
+No Last Epoch repository, Unity scene, actual asset loader, navigation system
+or production spawn pipeline was modified or validated in this work.
+
+Modules and ownership
+---------------------
+dist/core/contracts.mjs        Validation, copying, immutable commitments,
+                               ordinal ID comparison and status codes.
+dist/core/fuel-ledger.mjs      Potential, Available, spent/introduction audit,
+                               transfers and opaque source provenance.
+dist/core/group-composer.mjs   Authored cores, required tags, ordered preference
+                               pruning, completion and hard pack limits.
+dist/core/portal-selection.mjs Tagged eligible portal ranking and safe fallback.
+dist/core/encounter-manager.mjs Preparation, passive forecasts, dispatch,
+                               recovery, idempotent messages and final spending.
+dist/core/encounter-manager.d.ts Public data and host-adapter contract.
+
+dist/game/refuge-simulation.mjs Coordinates game subsystems and progression.
+dist/game/combat-model.mjs      Abstract damage, spill, health and charges.
+dist/game/zone-host.mjs         Zone activation, first-entry releases and portals.
+dist/game/spawn-adapter.mjs     Creates actors at host-owned portal anchors.
+dist/game/view-state.mjs        Publishes detached UI read models.
+dist/game/random.mjs            Seeded scenario selection outside the director.
+dist/display/crowd-view.mjs     Canvas, soft visual separation, beams and ghosts.
+dist/display/timeline.mjs       SVG geometry from telemetry snapshots.
+dist/telemetry/run-journal.mjs  Observational events, samples and frozen results.
+dist/ui/controller.mjs         Application composition and explicit commands.
+dist/ui/render-state.mjs       DOM rendering, using only detached read models.
+dist/ui/journal-view.mjs        Journal filtering, timeline and results display.
+dist/ui/simulation-clock.mjs   Browser clock and Play/Pause/speed.
+dist/ui/progress-store.mjs     Browser-local banked rewards.
+dist/ui/appearance.mjs         Palette; never imported by game or director.
+dist/app.mjs                   Small application entry point.
+
+Compatibility entry files simulation.mjs, visualization.mjs and zone-host.mjs
+only re-export their canonical modules. They contain no duplicated mechanics.
+Historical generation scripts are preserved under tools/history. Current
+validation starts at run-checks.mjs, not those historical scripts.
+
+Dependencies flow toward the director
+------------------------------------
+UI controller -> game host -> director core
+UI controller -> display
+UI renderers -> detached game/journal read models
+Game host -> observational telemetry
+Game and telemetry never import UI or display. Display never imports the game
+or director. Core imports only other core modules. Tests enforce these edges.
+
+Current baseline contract
+-------------------------
+The containing zone introduces its whole finite budget once. The ledger's
+source metadata identifies that introduction; sources are opaque to the core.
+Rooms have no owned fuel pool. First entry requests a portion from the zone's
+remaining Potential into Available. The host property entryReleaseRequest is
+a transfer instruction, not a room allocation. It is capped by remaining zone
+Potential. Entry never tops up a shortfall simply because N+1 costs more.
+The baseline requests 25 points in each chamber of a 100-point depth-1 zone.
+Waiting in the first room can consume the entire zone's Potential through
+passive flow. Later first entries can release zero. No reserve, replacement
+wave, or implicit new fuel is created. Available residue is preserved.
+
+Funding determines eligibility. A funded prepared group commits on the first
+safe engine-ready update. Runtime recovery is uniformly one second in the toy;
+it is not a personality parameter. Runtime warning lead is 1.1 seconds.
+An unfunded group forecasts affordability only if remaining introduced Potential
+can cover its shortfall at the current effective flow rate. The selected door
+blinks during that lead window. A bonus release that funds the group completes
+any forecast without waiting for it. No fresh post-funding warning is required.
+
+One prepared group persists through ordinary configuration changes. Resolved
+members, actual prices and preferences are immutable. Menu changes affect
+subsequent composition. A trigger is one pending intent, not a room or request
+queue. Every successful spawn starts the technical recovery guard.
+
+The host supplies portal IDs, tags and eligibility. The director ranks those
+IDs using the prepared group's preferences and host safety checks. The host
+creates exactly the designated units at the designated portal position.
+The core receives neither room identity nor geometry or positions.
+
+Final spending is an explicit host-authorized exception. It releases remaining
+introduced Potential, cancels the old commitment/forecast and buys affordable
+groups or ad hoc units. Required composition tags can relax in this mode;
+member, Champion, average-cost and declared compatibility limits remain hard.
+Sub-cheapest residue is unused. Living enemies are not fabricated as defeats.
+
+Host adapter and update sequence
+--------------------------------
+Construct EncounterManager({config, runtime}). Technical runtime options are
+separate from encounter personality/content and immutable for that instance.
+1. Apply host events once; update content and eligible portal descriptors.
+2. Tick with an authoritative nonnegative simulation delta.
+3. Supply assetsReady(group), canEnter(group, portalId) and
+   commitSpawn(group, portalId) through the adapter.
+4. Consume data events after the update. Expose staged actors only after
+   spawn-committed; initiate asset preparation on group-prepared.
+5. Notify actual defeats by their stable host actor IDs.
+6. Render independent snapshots; UI clocks must not advance while paused.
+
+assetsReady and canEnter are pure queries against the committed immutable group.
+commitSpawn must create the complete group atomically, initially hidden and
+noninteractive, or return failure and clean up all partial actors. Success must
+return one unique nonempty string or safe integer actor ID per designated member,
+with no collision against currently living IDs. IDs unique for the full activity
+are recommended to prevent late death notifications from crediting reused IDs.
+Malformed adapter output is a programming-contract error, not a recoverable
+content choice. The director cannot undo arbitrary engine side effects.
+
+A recoverable failure spends no fuel, preserves the prepared group and pending
+intent, and does not reset recovery. A portal lost during a forecast cancels
+presentation and permits safe re-selection without spending. An already-funded
+group does not require a fresh warning when assets or a route become ready.
+query snapshot.waitReason rather than parsing diagnostic English wait labels.
+The UI never touches internal ledger, pending actor maps or living sets.
+
+C# translation notes
+--------------------
+Use double for point amounts and simulation times when reproducing the current
+JS reference, not Unity float. Preserve operation order and the 1e-7 affordability
+tolerance; the conservation check uses 1e-5. If adopting fixed-point costs, make
+that a deliberate separate change and rerun conformance tests.
+Use HashSet<string> for tags/event IDs and Dictionary for resolved catalogs.
+Use immutable/read-only DTOs for commitments and make explicit snapshot copies.
+Map JS structuredClone/deepFreeze to DTO copying and readonly data ownership;
+do not clone Unity objects or asset references into the library.
+Use StringComparer.Ordinal for tie breaks. Preserve stable ordering between
+successive preference-pruning passes. LINQ OrderBy is suitable; an unstable
+List.Sort with unpreserved ties can choose different cores from the reference.
+Translate nullable fundingEta and next/forecast states explicitly. -Infinity
+last-spawn represents 'never spawned'; JSON encoding records it as null.
+Bind a C# ISpawnAdapter equivalent around asset manifests, safe tagged portals
+and the engine's atomic spawn transaction. Keep GameObjects, Transform,
+MonoBehaviour, rendering, health, player pacing and rewards outside the core.
+The event stream is synchronous; async engine work belongs behind readiness
+queries. Apply events in a serialized authoritative update, not recursively
+inside callbacks or concurrently with fuel commitment.
+
+Validation and portable vectors
+-------------------------------
+node core-tests.mjs                  30 standalone director checks
+node core-component-tests.mjs         6 isolated core component checks
+node verify-v5.mjs                   20 combat and full-playthrough checks
+node verify-v7.mjs                    9 progression/reset checks
+node verify-v8.mjs                    7 doorway/host checks
+node verify-v9.mjs                   21 boundary, baseline and telemetry checks
+node director-conformance.mjs         6 portable golden vectors
+node run-checks.mjs                  All 99 checks plus module syntax checks
+
+The extraction package intentionally excludes UI, game, display, Site identity
+and browser assets. Run node run-director-checks.mjs for its 42 standalone checks with Node 18+
+and the plain fixture. The other game/UI tests belong to the full source package.
+director-conformance-vectors.json contains language-neutral inputs/actions and
+expected funded commits, portal IDs, members, costs and resulting fuel/status.
+The future C# port can replay the same vectors. These lock the observed JS
+contract; independent unit assertions cover the underlying funding rules.
+
+Before behavioral corrections, the module-only refactor matched 15 deterministic
+full-run trace hashes exactly, across all five personalities and three approaches.
+Those trace records are retained separately as review evidence. They do not
+claim equivalence after intentional removal of adaptive entry top-ups.
+
+Known scope and remaining integration decisions
+-----------------------------------------------
+No C# port was compiled and no live Last Epoch integration was tested. Real asset
+throughput, pooling, navigation, cancellation and transaction guarantees remain
+for the engineering team to validate. This is not a technical stress laboratory.
+The toy has one active zone and one effective passive rate. Concurrent-zone flow
+policies require an explicit host policy rather than inferring them from this
+Refuge route. Source-filtered releases are already supported by the ledger.
+Scripted lieutenants, guardians and bosses are game-host actors outside Director
+fuel. Journal results state this distinction so pressure and spending are not
+mistaken for the same total. Ending early records remaining defenders without
+granting defeats. Final spend completion is not itself proof all enemies died.
+Compatibility supports declared variant-ID pairs (including self-repeat bans).
+The current illustrative catalogs declare no such pairs. More general engine
+compatibility policies can be added as pure composer constraints with new tests.
+Composition is deterministic and may repeatedly choose the same core. Enemy
+roles still share the cost-based abstract damage model; no new role mechanics,
+player-power sliders or room-release permutations were added in this cleanup.
+The original design DOCX and prior release packages remain historical sources;
+this guide and current typed API describe the executable V9 contract.

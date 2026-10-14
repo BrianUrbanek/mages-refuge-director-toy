@@ -1,0 +1,113 @@
+Encounter selection and sealed-door contract -- V13, 13 October 2026
+
+This guide supplements DIRECTOR-PORT-GUIDE.txt. The new modules are all in
+dist/core and run without the Refuge game, UI, display, browser or storage.
+
+MODULE OWNERSHIP
+encounter-list.mjs / .d.ts: validation, per-list inventory/cycles, ordered or
+  random consumption, bounded reshuffle handling, detached state and decisions.
+encounter-opportunities.mjs: pure context compilation/resolution. Portal and group
+  tags remain distinct. It does not look at fuel, asset readiness or combat.
+standalone-composer.mjs: exact authored membership and cost, without padding to
+  a normal target or applying normal required-role coverage.
+composition-limits.mjs: shared member/Champion/average-cost/compatibility checks.
+seeded-random.mjs: portable uint32 LCG, reusable independent streams.
+encounter-manager.mjs: orchestration and immutable N+1; scheduling still funding.
+game/director-profiles.mjs: DEMO CONTENT ONLY, not part of the extracted core.
+
+CONFIGURATION (plain data; see encounter-manager.d.ts)
+config.selection = {
+  id: 'example-personality', mode: 'ordered',
+  cards: [
+    { id: 'small', kind: 'normal', targetMultiplier: 0.8 },
+    { id: 'breach', kind: 'breach', groupTags: ['breach'],
+      portalTags: ['side-sealed'], groupTagPolicy: 'enforce' },
+    { id: 'large', kind: 'normal', targetMultiplier: 1.2 },
+    { id: 'reset', kind: 'reshuffle' }
+  ], minTarget: 10, maxTarget: 40
+}
+config.groups = [{ id: 'ambush', standalone: true, tags: ['breach'],
+  members: ['guard','guard','guard','guard'], portalPreferences: ['side-sealed'] }]
+Member IDs must exist in config.enemies. The resolved catalog supplies prices.
+Tags are design data, not engine size tests. Group/portal policies accept enforce,
+prefer or ignore; default enforce. Breach still structurally needs an eligible
+breachable portal. Standalone (non-breach) cards can select complete authored
+groups for ordinary open portals. Normal cards compose using their multiplier and
+optional preferredTags, respecting configured normal bounds/hard composition rules.
+A normal card can instead author target explicitly for an exact point pattern.
+List length is arbitrary. Duplicate instructions need distinct card IDs so they
+retain weighting without becoming indistinguishable copies of one inventory item.
+
+CONTEXT AND SELECTION
+On preparation, compile valid cards from the current catalog and portal list.
+No suitable group/portal means exclusion. Temporary asset load, host occupancy or
+insufficient Available do NOT invalidate a card. Composition checks are shared;
+standalone does not mean exempt from hard declared pack limits.
+Ordered mode consumes valid cards in authored order. Random mode chooses a
+remaining card, removes it and refills only when exhausted. A reshuffle card
+refills immediately and draws again. At most listLength*4+4 attempts are made.
+If repeated reshuffles exhaust that bound, the first valid authored encounter is
+an explicit, logged fallback. With no playable card, report a composition error;
+never manufacture fuel or silently choose an unaffordable replacement.
+
+Progress is stored per selection ID, mode and authored card-data signature.
+Room/menu/target changes preserve that list's remaining inventory. Currently
+invalid remaining cards are discarded without reordering others. A refill
+reconsiders the original list against current opportunities. Switching personality
+or mode activates its own retained inventory. Changing authored card definitions
+creates a new inventory. Reset creates fresh seeded inventories.
+The already prepared N+1 remains deeply frozen through ordinary configuration
+changes. Its group, actual cost, portal assignment and card metadata cannot drift.
+
+PORTAL AND HOST CONTRACT
+The Zone offers {id,tags,eligible,breachable?}. Sealed is independent of eligible:
+closed usable side doors have eligible=true and breachable=true. No room name,
+geometry or enemy size is required in the Director. A breach plan contains
+intent='breach', standalone=true, portalId=<assigned ID>, telegraph=false.
+It waits for its actual authored cost, honors engine recovery and host readiness,
+and never forecasts that sealed arrival. Ordinary groups cannot use a still-sealed
+breach opportunity. A disappeared/disabled required portal explicitly cancels the
+special commitment; it does not redirect the breach to a front door.
+
+Host commitSpawn must stage the designated members atomically. On success it can
+return {success:true, actorIds, portals:<updated descriptors>}. The manager checks
+IDs and descriptor validity before spending, applies updated descriptors before
+preparing N+1, and emits spawn-committed. This prevents drawing a second breach
+against the same seal. Production adapters must make these returned data and
+staged state agree; failure must leave no partial spawn or door mutation.
+The demo opens the assigned seal during successful staging, clears breachable,
+changes its tags to side-open and returns that new list. Positions stay in Zone.
+Later arrivals through the opened portal forecast normally. Front/rear stay open.
+Demo side seals are zone-scoped IDs, two per activated zone, persisting through
+its rooms. Future per-room opportunities can be supplied without changing core.
+Settings entrance toggles enable/disable an opportunity; they do not break seals.
+
+FINAL SPEND AND COMPATIBILITY
+Final spending explicitly cancels ordinary N+1 and uses affordable cleanup; it
+bypasses the encounter list and does not consume cards. Existing configs without
+selection retain the old ordinal composition behavior and existing golden vectors.
+The one-second technical recovery and normal 1.1-second warning lead are unchanged.
+This update implements list selection/breaches, not the separately discussed
+longer-warning or condensed-combat Journal/Copy-log proposals.
+
+OBSERVABILITY AND PORTING
+Snapshots include list ID/mode, remaining IDs, excluded IDs, cycle and RNG state.
+Prepared groups include card/list/mode/cycle metadata. Structured events include
+cards-filtered, list-refilled, card-drawn, selection-fallback and selection-canceled.
+UI reads detached views; it does not own selection or directly access manager.
+SeededRandom uses unchecked uint32 arithmetic:
+  state = (1664525 * state + 1013904223) mod 2^32
+  drawIndex = floor((state / 4294967296.0) * remainingCount)
+No random values are consumed by composition/refill. Host boss RNG has a separate
+instance of the same utility. Preserve ordinal ID tie breaks during C# translation.
+selection-golden-vector.json records a language-neutral twelve-draw example.
+
+VERIFICATION
+selection-tests.mjs has 33 tests covering both modes, filtering, identity/state,
+reshuffles, policies, exact membership, funding waits, cancellation, post-commit
+portal updates, invalid inputs and the golden vector. The extracted core runner
+has 75 tests total, without game/UI/display. Full runner has 188 plus syntax checks;
+verify-v13.mjs adds eight host/content/overlap/reset/seed/progression checks.
+Source and standalone ZIPs are versioned V13; prior evidence stays preserved.
+Actual C# compilation, Last Epoch engine integration, navigation and production
+asset spawning remain untested. This is a portable JS reference implementation.

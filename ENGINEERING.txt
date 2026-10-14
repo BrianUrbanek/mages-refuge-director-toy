@@ -1,0 +1,115 @@
+Current executable contract: DIRECTOR-PORT-GUIDE.txt. Current review: CODE-REVIEW-V9.txt. Run run-checks.mjs for 99 checks. Notes below describe earlier releases and are retained as history.
+
+MAGE'S REFUGE — ENCOUNTER DIRECTOR V5
+
+Extractable core: dist/core/encounter-manager.mjs and its TypeScript declaration.
+No DOM, rendering, combat, room or zone model in the core. Host supplies time,
+resolved content, budget/release messages, portal descriptors and spawn outcomes.
+
+BOUNDARY
+Zone activation: applyOnce(uniqueEventId, {add: zoneBudget}).
+First room entry: host tracks entry once, calls transfer(amount, zoneSource),
+then requestSpawn(). This releases existing fuel and adds no room budget.
+Zone profile: updateConfig(config), including its passive flow rate.
+Portal list: updatePortals([{id, tags, eligible}]). No positions or geometry.
+Director preferences are ordered tags. corePortalPreferences can override them
+for a particular authored group core. Prepared N+1 retains its resolved portal
+preferences across menu changes. Portal selection occurs at dispatch, not prep.
+Eligible portals passing host canEnter are ranked lexicographically by ordered
+tag preference, with stable ID tie-breaks. Unmatched tags permit fallback.
+Sealed-side is a descriptive tag; eligible determines usability. Zone may stage
+a door-opening arrival. The demo unlocks that capability in the third room.
+Host receives commitSpawn(group, selectedPortalId); it cannot substitute another
+portal. Atomic success returns one distinct actor ID per member. Failure cleans
+up hidden partial actors and spends nothing. Warning cancellation retains N+1
+and the request; new portal list can allow a different selection.
+Normal profile updates preserve N+1. Explicit invalidation is separate.
+Fuel commits once only after successful arrival. Host reports defeats by ID.
+
+DEMO LAYER
+dist/zone-host.mjs owns zone budgets, room entry state and portal descriptors.
+dist/simulation.mjs owns abstract combat, physical spawn execution, progression.
+dist/visualization.mjs receives detached snapshots and owns visual positions.
+dist/app.mjs owns UI and browser-local reward storage.
+Each zone has four rooms and 100 points at depth 1. Budget/prices scale by depth.
+Room entry releases 25, or enough for an already committed larger group when
+remaining zone Potential allows. Every entry is one-time. Passive flow may
+consume the entire activated zone before later rooms are entered. Later rooms
+then release zero; no hidden replacement budget or forced wave is invented.
+Normal targets 15–40 points; balanced stage targets 18/20/22/25. Different profiles
+choose forward, behind, open-side or sealed-side; Champion cores prefer sealed.
+Boss/end exception releases all remaining Potential, cancels old commitment and
+buys affordable packs/ad hoc units, leaving sub-cheapest residue unused.
+Room Finished is host-owned historical quiet observation, not an ED lifecycle
+and not a progression permission. Enemies and fuel remain globally shared.
+
+VERIFICATION
+Run node core-tests.mjs for 20 standalone contract checks.
+Run node verify-v5.mjs for 20 simulation checks, including full playthroughs.
+Core tests use only the independent ED plus a small host fixture.
+Integration example: node integration-example.mjs.
+Earlier v2/v3 tests refer to superseded volume APIs and are historical only.
+Tagged portals and zone activation are user clarifications extending the review,
+not claims that the previous documentation already specified these behaviors.
+Production geometry, navigation, assets and combat require engine adapters.
+
+SIMULATION PASS V5
+The encounter core is unchanged. Authored flow is 0.5 points/sec; autonomous
+timing is now governed by funding; see the V8 correction below.
+Combat is host-only: fixed 36 damage/sec, pulse every 0.5s. Enemy HP = cost*22,
+including Champions (no extra Champion health multiplier). Scripted lieutenant,
+final boss, Sanctum boss and Guardian costs are 12, 18, 24 and 4 respectively.
+Incoming player damage = total living cost*0.24 HP/sec, including supports.
+Player regenerates 1 HP/sec, capped at 100. No healing button or manual burst.
+Two starting charges; one regenerated every 10s while below cap; no extra reserve.
+Spend one per pulse when incoming damage minus regen >= 2*regen. The entire
+pulse is 4 times passive damage, not an independently tuned attack or AoE nova.
+Excess damage spills to nearest logical position, with stable actor-ID ties.
+Simulation owns logical actor positions; renderer only displays detached copies
+and visual separation. Every hit carries beam endpoints, including lethal hits.
+Simulation advances internally in 0.05s steps regardless of browser frame delta.
+Steady: quiet/unaffordable current arrival, at least 98 HP, both charges.
+Press: <=4 living points, at least 82 HP and one charge, no pending warning.
+Charge: no reserve checks; 2s room dwell. Default balanced charging dies from
+overlap, while steady and press finish required and full routes after resting.
+The 20-point controlled example clears in 9.5s with two bursts vs 12.5s without.
+Baseline power UI is a readout; power/tankiness sliders and UI trays are deferred.
+History/export include HP, living cost, charges, burst count and rest time.
+
+UI PASS V6
+Left route/chamber rail, fixed unobscured arena, wide bottom tab panel.
+Player/Director/Journal/Lieutenant/Settings replace panel content; no side overlay.
+Health, charges and pressure persist above tabs. Room name only above arena.
+Door markers derive from host portal state, capacity and active dispatch; closed,
+open, open-but-busy and incoming states, plus opening flash. No engine changes.
+Keyboard tab navigation, narrow and short-screen layouts, reduced-motion support.
+Standard SVG UI icons are Bootstrap Icons 1.11.3, MIT license included with assets.
+
+UI AND PROGRESSION V7
+Full-width split bottom region; Player controls always visible outside tabs,
+Director/Journal/Lieutenant/Settings in right inspection region. Top Reset run
+restarts current activity paused, preserving preferences and banked rewards.
+Single progression selector maps Manual to autoAdvance=false; automatic modes
+map to approach+autoAdvance=true. Switching mode clears temporary movement stop;
+reselecting same mode does not resume a stopped approach. Stop affects movement
+only; Pause is presentation-host clock control. Manual shows one door action or
+destination choices. Automatic modes use configured route and stop/resume only.
+Reset clears visualization positions/death ghosts; Sanctum reset consumes no
+additional entry keys. Optional explicit new-Refuge action available in Sanctum.
+No encounter-manager changes. Rendering and host progression remain separate.
+Run core-tests.mjs, verify-v5.mjs and verify-v7.mjs: 49 checks total.
+
+V8 scheduler correction
+=======================
+The current contract is in REVIEW-CORRECTION.txt. EncounterConfig.interval is
+removed; engineRecoverySeconds replaces it with technical meaning, uniform 1s.
+Snapshot adds fundingEta and recoveryRemaining. Forecast dispatch.until predicts
+affordability; it is never a gate on a funded arrival. AssetsReady remains a
+host hook; the toy's resident assets are immediately ready. Failed commit spends
+nothing and does not reset recovery. Tagged portal selection is preserved.
+Current checks: core-tests.mjs (30), verify-v5.mjs (20 combat/playthrough),
+verify-v7.mjs (9 progression/reset), verify-v8.mjs (7 door/host contracts).
+Press and steady complete both routes; charge fails under baseline power.
+Final-spend backlogs now arrive at the technical recovery rate, increasing
+overlap. No combat tuning was changed to conceal that pressure change.
+

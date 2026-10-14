@@ -1,0 +1,1 @@
+export const fixture={id:'example',menu:'guards',enemies:[{id:'guard',name:'Guard',cost:2,tags:['melee'],tier:'normal',footprint:1},{id:'healer',name:'Healer',cost:3,tags:['support'],tier:'normal',footprint:1}],cores:[['guard','guard']],required:[],preferred:['melee'],targets:[8],finalTarget:8,flowRate:2,rules:{maxMembers:8,maxChampions:1,maxAverageCost:4}};

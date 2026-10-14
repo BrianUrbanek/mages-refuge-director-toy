@@ -1,0 +1,8 @@
+{
+  "seed": 1,
+  "listId": "golden",
+  "mode": "random",
+  "cards": ["a", "b", "c", "d"],
+  "expectedDraws": ["a", "c", "d", "b", "a", "c", "d", "b", "a", "c", "b", "d"],
+  "randomAlgorithm": "uint32 state = (1664525 * state + 1013904223) modulo 2^32; draw index = floor(state / 4294967296 * remainingCount). No random draws for composition or cycle refill."
+}

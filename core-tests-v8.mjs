@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {EncounterManager} from './dist/core/encounter-manager.mjs';
+import {fixture} from './core-fixture.mjs';
+let count=0,serial=0;const test=(name,fn)=>{fn();count++;console.log('PASS '+name);};
+const portals=[{id:'front',tags:['forward'],eligible:true},{id:'rear',tags:['behind'],eligible:true},{id:'sealed',tags:['side-sealed'],eligible:true}];
+const host={assetsReady:()=>true,canEnter:()=>true,commitSpawn:p=>({success:true,actorIds:p.members.map(()=>++serial)})};
+function manager(extra={}){const {engineRecoverySeconds=1,...content}=extra;const m=new EncounterManager({config:{...fixture,portalPreferences:['forward','behind'],...content},runtime:{engineRecoverySeconds,warningLeadSeconds:1}});m.updatePortals(portals);return m;}
+function fund(m,n=20){m.applyOnce('budget',{add:n,transfer:n,trigger:true});return m;}
+function forecast(){const m=manager();m.applyOnce('budget',{add:8,transfer:6});m.tick(.01,host);return m;}
+test('standalone manager has no host or presentation dependencies',()=>assert.ok(!/\bdocument\b|\bwindow\b|\brooms\b|\bzones\b|\bcanvas\b/.test(fs.readFileSync('dist/core/encounter-manager.mjs','utf8'))));
+test('budget event is idempotent',()=>{const m=manager();m.applyOnce('budget',{add:100});m.applyOnce('budget',{add:100});assert.equal(m.introduced,100);});
+test('passive transfer and source release conserve fuel',()=>{const m=manager();m.addPotential(25,'source');m.tick(3,{...host,assetsReady:()=>false});assert.equal(m.available,6);assert.equal(m.potential,19);assert.equal(m.transfer(Infinity,'source'),19);m.verify();});
+test('funded group commits immediately with no warning',()=>{const m=fund(manager());m.tick(0,host);assert.equal(m.spent,8);assert.equal(m.dispatch,null);assert.equal(m.lastSpawn,0);assert.ok(!m.events.some(e=>e.type==='warning-started'));});
+test('untriggered available fuel dispatches immediately too',()=>{const m=manager();m.addPotential(8,'source');m.transfer(8);m.tick(0,host);assert.equal(m.spent,8);});
+test('one second recovery applies even to triggered funding',()=>{const m=fund(manager());m.tick(0,host);m.requestSpawn();m.tick(.99,host);assert.equal(m.spent,8);assert.equal(m.wait,'Engine recovery');m.tick(.01,host);assert.equal(m.spent,16);});
+test('recovery is technical configuration not profile cadence',()=>{const m=fund(manager({engineRecoverySeconds:.25}));m.tick(0,host);m.tick(.25,host);assert.equal(m.spent,16);assert.equal(m.config.interval,undefined);});
+test('warning starts before passive funding completes',()=>{const m=forecast();assert.equal(m.spent,0);assert.ok(m.available<8);assert.equal(m.dispatch.entrance,'front');assert.ok(Math.abs(m.dispatch.until-1)<1e-7);});
+test('passive arrival commits at affordability without another warning',()=>{const m=forecast();m.tick(.98,host);assert.equal(m.spent,0);m.tick(.01,host);assert.equal(m.spent,8);assert.ok(Math.abs(m.lastSpawn-1)<1e-7);assert.equal(m.dispatch,null);});
+test('bonus funding during warning commits early in the same update',()=>{const m=forecast();m.applyOnce('door',{transfer:2,trigger:true});m.tick(0,host);assert.equal(m.spent,8);assert.equal(m.lastSpawn,.01);assert.equal(m.dispatch,null);});
+test('bonus transfer without trigger adds no warning delay',()=>{const m=forecast();m.transfer(2);m.tick(0,host);assert.equal(m.spent,8);});
+test('forecast can overlap recovery but cannot bypass it',()=>{const m=manager();m.applyOnce('budget',{add:16,transfer:15,trigger:true});m.tick(0,host);m.tick(.01,host);assert.ok(m.dispatch);m.tick(.49,host);assert.ok(Math.abs(m.available-8)<1e-7);assert.equal(m.spent,8);assert.equal(m.wait,'Engine recovery');m.tick(.5,host);assert.equal(m.spent,16);});
+test('insufficient total fuel never produces a false forecast',()=>{const m=manager();m.applyOnce('budget',{add:7,transfer:6});m.tick(0,host);assert.equal(m.dispatch,null);assert.equal(m.fundingEta(),null);});
+test('zero flow has no forecast but event funding spawns',()=>{const m=manager({flowRate:0});m.applyOnce('budget',{add:8,transfer:6});m.tick(5,host);assert.equal(m.dispatch,null);assert.equal(m.spent,0);m.transfer(2);m.tick(0,host);assert.equal(m.spent,8);});
+test('slower flow cancels a forecast that is no longer imminent',()=>{const m=forecast();m.updateConfig({...m.config,flowRate:.1});m.tick(0,host);assert.equal(m.dispatch,null);assert.equal(m.spent,0);});
+test('director preferences select the immediate arrival portal',()=>{const m=fund(manager());m.tick(0,host);assert.equal(m.events.find(e=>e.type==='spawn-committed').entrance,'front');});
+test('group preference overrides director preference',()=>{const m=fund(manager({corePortalPreferences:{0:['side-sealed']}}));m.tick(0,host);assert.equal(m.events.find(e=>e.type==='spawn-committed').entrance,'sealed');});
+test('host safety rejection overrides portal preference',()=>{const m=fund(manager());m.tick(0,{...host,canEnter:(p,id)=>id!=='front'});assert.equal(m.events.find(e=>e.type==='spawn-committed').entrance,'rear');});
+test('portal removed during forecast reselects without spending',()=>{const m=forecast(),p=m.next;m.updatePortals(portals.filter(p=>p.id!=='front'));m.tick(0,host);assert.equal(m.next,p);assert.equal(m.spent,0);assert.equal(m.dispatch.entrance,'rear');m.tick(.99,host);assert.equal(m.events.find(e=>e.type==='spawn-committed').entrance,'rear');});
+test('funded group waits for a legal portal then commits immediately',()=>{const m=fund(manager());m.updatePortals([]);m.tick(10,host);assert.equal(m.spent,0);assert.equal(m.wait,'Safe entrance / capacity');m.updatePortals(portals);m.tick(0,host);assert.equal(m.spent,8);});
+test('asset readiness adds no fresh warning',()=>{const m=fund(manager());m.tick(5,{...host,assetsReady:()=>false});assert.equal(m.spent,0);m.tick(0,host);assert.equal(m.spent,8);assert.equal(m.dispatch,null);});
+test('failed spawn preserves fuel, group, request and recovery timestamp',()=>{const m=fund(manager()),p=m.next;m.tick(0,{...host,commitSpawn:()=>({success:false})});assert.equal(m.spent,0);assert.equal(m.next,p);assert.ok(m.pending);assert.equal(m.lastSpawn,-Infinity);m.tick(0,host);assert.equal(m.spent,8);});
+test('adapter receives exact designated group and portal',()=>{const m=fund(manager()),p=structuredClone(m.next);let received;m.tick(0,{...host,commitSpawn:(group,id)=>{received={group,id};return host.commitSpawn(group);}});assert.deepEqual(received,{group:p,id:'front'});assert.equal(m.living.size,p.members.length);m.verify();});
+test('profile update preserves the prepared group',()=>{const m=manager(),p=m.next;m.updateConfig({...m.config,portalPreferences:['behind']});assert.equal(m.next,p);assert.deepEqual(p.portalPreferences,['forward','behind']);});
+test('snapshots and portal inputs are detached',()=>{const m=manager(),input=structuredClone(portals);m.updatePortals(input);input[0].eligible=false;const s=m.snapshot();s.next.members[0].cost=999;assert.ok(m.portals[0].eligible);assert.equal(m.next.members[0].cost,2);});
+test('invalid configuration and portal input are rejected',()=>{assert.throws(()=>manager({engineRecoverySeconds:-1}));const m=manager(),before=m.snapshot();assert.throws(()=>m.updatePortals([...portals,portals[0]]));assert.deepEqual(m.snapshot(),before);});
+test('final spend immediately buys ad hoc units and records residue',()=>{const m=manager();m.addPotential(3,'last');m.beginFinalSpend('End');assert.equal(m.next.cost,2);m.tick(0,host);assert.ok(m.finalComplete);assert.equal(m.available,1);assert.equal(m.spent,2);});
+test('successive final groups flush at engine recovery rate',()=>{const m=manager();m.addPotential(20,'last');m.beginFinalSpend('End');m.tick(0,host);m.tick(1,host);m.tick(1,host);assert.equal(m.spent,20);assert.ok(m.finalComplete);});
+test('new budget after flush resumes normal preparation',()=>{const m=manager();m.beginFinalSpend('End');m.applyOnce('new',{add:100});m.updateConfig(fixture);assert.equal(m.finalSpend,false);assert.ok(m.next);});
+test('end stops scheduling without defeat credit',()=>{const m=fund(manager());m.living.add('alive');m.end();m.end();const t=m.time;m.tick(10,host);assert.equal(m.time,t);assert.equal(m.living.size,1);assert.equal(m.next,null);});
+console.log(`${count} standalone scheduler checks passed`);
