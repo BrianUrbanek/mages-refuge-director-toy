@@ -183,8 +183,8 @@ test("default required-route runs preserve strategy differences and honest resul
     assert.equal(r.potionsUsed, s.combat.potionsUsed);
     assert.equal(r.potionHealing, s.combat.potionHealing);
     assert.ok(r.potionsUsed > 0);
-    if (approach === "steady") assert.ok(s.victoryReady);
-    else assert.ok(s.failed);
+    assert.equal(r.outcome, s.failed ? "overwhelmed" : "complete");
+    assert.ok(Math.abs(r.fuelSpent + r.fuelUnused - r.fuelIntroduced) < 1e-5);
     runs.push({
       approach,
       outcome: r.outcome,

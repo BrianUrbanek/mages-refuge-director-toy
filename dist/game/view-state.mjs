@@ -1,4 +1,5 @@
 import { PLAYER_STAT_OPTIONS, DEFAULT_PLAYER_STATS } from "./player-stats.mjs";
+import { BURST_STRATEGIES } from "./player-policy.mjs";
 import { AREAS, MENUS, APPROACHES, configFor } from "../demo-data.mjs";
 
 /** Translate the host into detached read models; no DOM, storage or canvas. */
@@ -11,6 +12,8 @@ export function createViewState(sim) {
     maxHp: sim.combat.maxHp,
     maxCharges: sim.combat.maxCharges,
     playerStats: sim.playerStats,
+    burstStrategy: sim.burstStrategy,
+    burstStrategies: BURST_STRATEGIES,
     playerStatOptions: PLAYER_STAT_OPTIONS,
     playerStatDefaults: DEFAULT_PLAYER_STATS,
     failed: sim.failed,

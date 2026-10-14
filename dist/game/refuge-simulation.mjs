@@ -5,7 +5,7 @@ import { createRandom } from "./random.mjs";
 import { ZoneHost } from "./zone-host.mjs";
 import { CombatModel } from "./combat-model.mjs";
 import { resolvePlayerStats } from "./player-stats.mjs";
-import { steadyReservesReady } from "./player-policy.mjs";
+import { steadyReservesReady, BURST_STRATEGIES } from "./player-policy.mjs";
 import { createSpawnAdapter, canSpawnAtPortal } from "./spawn-adapter.mjs";
 import { EncounterManager } from "../core/encounter-manager.mjs";
 import { AREAS, APPROACHES, MENUS, BOSSES, configFor } from "../demo-data.mjs";
@@ -24,6 +24,9 @@ export class RefugeSimulation {
     this.route = opts.route || "required";
     this.autoAdvance = opts.autoAdvance ?? true;
     this.priority = "nearest";
+    this.burstStrategy = opts.burstStrategy ?? "health";
+    if (!BURST_STRATEGIES[this.burstStrategy])
+      throw new Error("Invalid last-charge strategy");
     this.selectionMode = opts.selectionMode ?? "random";
     this.reset();
   }
@@ -66,6 +69,7 @@ export class RefugeSimulation {
       power: this.power,
       stats: this.playerStats,
       priority: this.priority,
+      burstStrategy: this.burstStrategy,
       onEvent: (e) => {
         if (e.kind === "message") this.note(e.text, e.type);
         else {
@@ -96,6 +100,13 @@ export class RefugeSimulation {
       "player-settings",
       "Player stats at run start",
       this.playerStats,
+      this.context(),
+    );
+    this.journal.record(
+      0,
+      "strategy",
+      "Last-charge strategy: " + BURST_STRATEGIES[this.burstStrategy].name,
+      { burstStrategy: this.burstStrategy },
       this.context(),
     );
     this.enter(this.area, 0, "Player entry");
@@ -420,14 +431,7 @@ export class RefugeSimulation {
     return portal ? { ...portal.position } : { x: 0.5, y: 0.3 };
   }
   spawnLeader(key, name, metadata = {}) {
-    const points =
-        key === "liath"
-          ? 24
-          : key === "boss"
-            ? 18
-            : key.startsWith("guardian-")
-              ? 4
-              : 12,
+    const points = key.startsWith("guardian-") ? 4 : 35,
       hp = points * 22;
     this.actors.push({
       id: ++this.serial,
@@ -436,6 +440,8 @@ export class RefugeSimulation {
       hp,
       maxHp: hp,
       cost: points,
+      fuelEquivalent: points,
+      directorFuelCost: 0,
       tier: "champion",
       menu: this.areaDef().menu,
       tags: ["boss"],
@@ -834,6 +840,7 @@ export class RefugeSimulation {
         defendersRemaining: this.actors.length,
         progression: this.progression,
         personality: this.personality,
+        burstStrategy: this.burstStrategy,
         selectionMode: this.selectionMode,
         route: this.route,
         depth: this.depth,
@@ -857,12 +864,13 @@ export class RefugeSimulation {
   exportTrace() {
     this.journal.flushPassive(this.t, this.context());
     return {
-      spec: "Mage's Refuge v15 · Encounter Director selection v13",
+      spec: "Mage's Refuge v16 · Encounter Director selection v13",
       settings: {
         depth: this.depth,
         personality: this.personality,
         selectionMode: this.selectionMode,
         progression: this.progression,
+        burstStrategy: this.burstStrategy,
         route: this.route,
         seed: this.seed,
         playerStats: this.playerStats,
@@ -875,7 +883,7 @@ export class RefugeSimulation {
   }
   exportJournalLog() {
     return (
-      `Mage's Refuge v15 · ${this.progression} · ${this.personality} · seed ${this.seed}\n` +
+      `Mage's Refuge v16 · ${this.progression} · ${this.burstStrategy} charges · ${this.personality} · seed ${this.seed}\n` +
       formatJournalLog(this.journal.entries)
     );
   }
@@ -890,6 +898,21 @@ export class RefugeSimulation {
       throw new Error("Invalid priority");
     this.priority = id;
     this.selected = null;
+  }
+  setBurstStrategy(id) {
+    if (!BURST_STRATEGIES[id]) throw new Error("Invalid last-charge strategy");
+    if (id === this.burstStrategy) return false;
+    this.burstStrategy = id;
+    this.combat.burstStrategy = id;
+    this.combat.emergencyBurstPending = false;
+    this.journal.record(
+      this.t,
+      "strategy",
+      "Last-charge strategy: " + BURST_STRATEGIES[id].name,
+      { burstStrategy: id },
+      this.context(),
+    );
+    return true;
   }
   setRoute(id) {
     if (!["required", "full"].includes(id)) throw new Error("Invalid route");

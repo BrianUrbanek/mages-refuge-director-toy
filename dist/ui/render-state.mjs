@@ -175,8 +175,12 @@ export function createRenderer(document) {
         : toy.charges === 1
           ? toy.maxCharges > 1 && toy.chargeProgress >= 8
             ? "Recharge imminent · burst ready"
-            : "Reserved for 50% health · pulse ×4"
+            : "Reserved · " + toy.burstStrategies[toy.burstStrategy].name
           : "Next charge in " + fmt(10 - toy.chargeProgress) + "s · pulse ×4";
+    $("burstStrategy").value = toy.burstStrategy;
+    $("burstStrategyNote").textContent =
+      toy.burstStrategies[toy.burstStrategy].description +
+      " All strategies spend with 2+ charges or recharge within 2s. Supports absorb fire first.";
     $("regenNote").textContent =
       `Regen: ${toy.playerStats.regen} in combat · ${toy.playerStats.regen * 5} while clear`;
     $("pressureDps").textContent =

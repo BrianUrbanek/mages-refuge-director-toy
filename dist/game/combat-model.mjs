@@ -1,14 +1,17 @@
 import { resolvePlayerStats } from "./player-stats.mjs";
-import { burstReason } from "./player-policy.mjs";
+import { burstReason, BURST_STRATEGIES } from "./player-policy.mjs";
 /** Abstract combat host: actor health, movement, spill pulses and player reserves. */
 export class CombatModel {
   constructor({
     power = 36,
     stats = {},
     priority = "nearest",
+    burstStrategy = "health",
     onEvent = () => {},
     onDefeat = () => {},
   } = {}) {
+    if (!BURST_STRATEGIES[burstStrategy])
+      throw new Error("Invalid last-charge strategy");
     const resolved = resolvePlayerStats({
       ...stats,
       power: stats.power ?? power,
@@ -17,6 +20,7 @@ export class CombatModel {
       ...resolved,
       power: resolved.power,
       priority,
+      burstStrategy,
       onEvent,
       onDefeat,
       actors: [],
@@ -57,7 +61,9 @@ export class CombatModel {
     );
     this.minHp = Math.min(this.minHp, this.hp);
     const healthForDecision = this.hp;
+    if (this.burstStrategy !== "health") this.emergencyBurstPending = false;
     if (
+      this.burstStrategy === "health" &&
       this.actors.length &&
       this.charges > 0 &&
       healthForDecision <= this.maxHp * 0.5
@@ -192,6 +198,11 @@ export class CombatModel {
         maxCharges: this.maxCharges,
         chargeProgress: this.chargeProgress,
         maxHp: this.maxHp,
+        strategy: this.burstStrategy,
+        livingPoints: this.livingCost(),
+        priorityAlive: this.actors.some(
+          (a) => a.tags.includes("support") || a.tags.includes("glass-cannon"),
+        ),
         hp: this.emergencyBurstPending
           ? Math.min(healthForDecision, this.maxHp * 0.5)
           : healthForDecision,
@@ -228,7 +239,7 @@ export class CombatModel {
       remaining -= damage;
       if (actor.hp > 0) break;
       from = point;
-      actor = [...this.actors].sort(
+      actor = this.targetPool().sort(
         (a, b) =>
           Math.hypot(a.position.x - point.x, a.position.y - point.y) -
             Math.hypot(b.position.x - point.x, b.position.y - point.y) ||
@@ -253,9 +264,9 @@ export class CombatModel {
     if (this.charges === this.maxCharges) this.chargeProgress = 0;
   }
   target() {
-    const chosen = this.actors.find((a) => a.id === this.selected);
+    const sorted = this.targetPool();
+    const chosen = sorted.find((a) => a.id === this.selected);
     if (chosen) return chosen;
-    const sorted = [...this.actors];
     if (this.priority === "support")
       sorted.sort(
         (a, b) =>
@@ -272,6 +283,10 @@ export class CombatModel {
       );
     else sorted.sort((a, b) => a.id - b.id);
     return sorted[0];
+  }
+  targetPool() {
+    const supports = this.actors.filter((a) => a.tags.includes("support"));
+    return supports.length ? supports : [...this.actors];
   }
   hit(actor, damage) {
     if (!actor) return;

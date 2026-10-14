@@ -52,6 +52,11 @@ export function mountRefuge(document, window) {
     selectPanel("director");
   };
   const initial = sim.viewState();
+  $("burstStrategy").innerHTML = Object.entries(initial.burstStrategies)
+    .map(([id, value]) => `<option value="${id}">${esc(value.name)}</option>`)
+    .join("");
+  $("burstStrategy").onchange = () =>
+    action(() => sim.setBurstStrategy($("burstStrategy").value));
   createPlayerStatsEditor(document, {
     options: initial.playerStatOptions,
     defaults: initial.playerStatDefaults,

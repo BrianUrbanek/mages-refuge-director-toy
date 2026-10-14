@@ -1,0 +1,29 @@
+V16 -- last-charge strategies, support screens and scripted floor-boss stats
+
+Shared throughput rules remain: spend with 2+ charges, and spend a lone charge
+when another is within two seconds of recharge. The additional last-charge
+condition is selected independently of progression: Relieve pressure (<=50% HP,
+default), Prevent overwhelm (>=20 living fuel-equivalent), Priority targets
+(support or glass-cannon tag present). Priority changes timing, not targeting.
+Glass-cannon recognition is available; current content has supports and does not
+yet author a separate glass-cannon HP/DPS profile.
+
+Supports absorb fire before all other units, for baseline/charged pulses and
+spill. Manual selections and nearest/elite policies operate within that screen.
+Spill damage remains conserved. The redundant Support-first choice is removed
+from settings; legacy API value remains accepted. No support aura mechanics.
+
+Floor lieutenants and final/Sanctum bosses use 35 fuel-equivalent: 770 HP and
+8.4 incoming DPS at current coefficients. They introduce/spend zero Director
+fuel. Linked guardians retain 4 equivalent. Living-pressure triggers include
+scripted equivalent; ledger accounting and defeat-fuel potion refill do not.
+
+Strategy changes apply live, clear prior emergency intent, persist on reset,
+and appear in results, full trace and copied Journal. Default player unchanged.
+The stronger floor bosses change balance: default Steady now fails the baseline
+required route. Prior default-win assertion was replaced with honest outcome and
+conservation checks. All-profile completion fixture now explicitly uses 72 DPS,
+200 HP and 3 potions; this does not retune the default player.
+
+221 checks plus module syntax pass, including nine new focused checks.
+Director core remains unchanged; production/C# integration remains untested.
