@@ -32,7 +32,7 @@ export class CrowdView {
     this.lastActors.clear();
     this.snapshot = null;
   }
-  render(snapshot, dt) {
+  render(snapshot, dt, projection = {}) {
     this.snapshot = snapshot;
     const c = this.canvas,
       r = c.getBoundingClientRect(),
@@ -47,6 +47,7 @@ export class CrowdView {
     const ctx = this.ctx,
       w = r.width,
       h = r.height;
+    const traveler = projection.traveler ?? { x: 0.5, y: 0.57 };
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, w, h);
     const living = new Set(snapshot.actors.map((a) => a.id));
@@ -191,7 +192,9 @@ export class CrowdView {
         ctx.lineWidth = e.boosted ? 3 : 2;
         ctx.globalAlpha = 1 - age / 0.25;
         ctx.beginPath();
-        ctx.moveTo(e.from.x * w, e.from.y * h);
+        const origin =
+          e.from.x === 0.5 && e.from.y === 0.57 ? traveler : e.from;
+        ctx.moveTo(origin.x * w, origin.y * h);
         ctx.lineTo(e.to.x * w, e.to.y * h);
         ctx.stroke();
         ctx.globalAlpha = 1;
@@ -201,7 +204,7 @@ export class CrowdView {
         ctx.lineWidth = 3;
         ctx.globalAlpha = 1 - age / 0.8;
         ctx.beginPath();
-        ctx.arc(w * 0.5, h * 0.57, age * w * 0.48, 0, Math.PI * 2);
+        ctx.arc(w * traveler.x, h * traveler.y, age * w * 0.48, 0, Math.PI * 2);
         ctx.stroke();
         ctx.globalAlpha = 1;
       }

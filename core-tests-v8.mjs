@@ -1,3 +1,4 @@
+// Scheduler/default-mode compatibility. Current budget-aware behavior is in budget-tests.mjs.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {EncounterManager} from './dist/core/encounter-manager.mjs';
@@ -20,7 +21,7 @@ test('passive arrival commits at affordability without another warning',()=>{con
 test('bonus funding during warning commits early in the same update',()=>{const m=forecast();m.applyOnce('door',{transfer:2,trigger:true});m.tick(0,host);assert.equal(m.spent,8);assert.equal(m.lastSpawn,.01);assert.equal(m.dispatch,null);});
 test('bonus transfer without trigger adds no warning delay',()=>{const m=forecast();m.transfer(2);m.tick(0,host);assert.equal(m.spent,8);});
 test('forecast can overlap recovery but cannot bypass it',()=>{const m=manager();m.applyOnce('budget',{add:16,transfer:15,trigger:true});m.tick(0,host);m.tick(.01,host);assert.ok(m.dispatch);m.tick(.49,host);assert.ok(Math.abs(m.available-8)<1e-7);assert.equal(m.spent,8);assert.equal(m.wait,'Engine recovery');m.tick(.5,host);assert.equal(m.spent,16);});
-test('insufficient total fuel never produces a false forecast',()=>{const m=manager();m.applyOnce('budget',{add:7,transfer:6});m.tick(0,host);assert.equal(m.dispatch,null);assert.equal(m.fundingEta(),null);});
+test('legacy default: insufficient total fuel never produces a false forecast',()=>{const m=manager();m.applyOnce('budget',{add:7,transfer:6});m.tick(0,host);assert.equal(m.dispatch,null);assert.equal(m.fundingEta(),null);});
 test('zero flow has no forecast but event funding spawns',()=>{const m=manager({flowRate:0});m.applyOnce('budget',{add:8,transfer:6});m.tick(5,host);assert.equal(m.dispatch,null);assert.equal(m.spent,0);m.transfer(2);m.tick(0,host);assert.equal(m.spent,8);});
 test('slower flow cancels a forecast that is no longer imminent',()=>{const m=forecast();m.updateConfig({...m.config,flowRate:.1});m.tick(0,host);assert.equal(m.dispatch,null);assert.equal(m.spent,0);});
 test('director preferences select the immediate arrival portal',()=>{const m=fund(manager());m.tick(0,host);assert.equal(m.events.find(e=>e.type==='spawn-committed').entrance,'front');});
@@ -34,8 +35,8 @@ test('adapter receives exact designated group and portal',()=>{const m=fund(mana
 test('profile update preserves the prepared group',()=>{const m=manager(),p=m.next;m.updateConfig({...m.config,portalPreferences:['behind']});assert.equal(m.next,p);assert.deepEqual(p.portalPreferences,['forward','behind']);});
 test('snapshots and portal inputs are detached',()=>{const m=manager(),input=structuredClone(portals);m.updatePortals(input);input[0].eligible=false;const s=m.snapshot();s.next.members[0].cost=999;assert.ok(m.portals[0].eligible);assert.equal(m.next.members[0].cost,2);});
 test('invalid configuration and portal input are rejected',()=>{assert.throws(()=>manager({engineRecoverySeconds:-1}));const m=manager(),before=m.snapshot();assert.throws(()=>m.updatePortals([...portals,portals[0]]));assert.deepEqual(m.snapshot(),before);});
-test('final spend immediately buys ad hoc units and records residue',()=>{const m=manager();m.addPotential(3,'last');m.beginFinalSpend('End');assert.equal(m.next.cost,2);m.tick(0,host);assert.ok(m.finalComplete);assert.equal(m.available,1);assert.equal(m.spent,2);});
-test('successive final groups flush at engine recovery rate',()=>{const m=manager();m.addPotential(20,'last');m.beginFinalSpend('End');m.tick(0,host);m.tick(1,host);m.tick(1,host);assert.equal(m.spent,20);assert.ok(m.finalComplete);});
-test('new budget after flush resumes normal preparation',()=>{const m=manager();m.beginFinalSpend('End');m.applyOnce('new',{add:100});m.updateConfig(fixture);assert.equal(m.finalSpend,false);assert.ok(m.next);});
+test('legacy explicit API: final spend immediately buys ad hoc units and records residue',()=>{const m=manager();m.addPotential(3,'last');m.beginFinalSpend('End');assert.equal(m.next.cost,2);m.tick(0,host);assert.ok(m.finalComplete);assert.equal(m.available,1);assert.equal(m.spent,2);});
+test('legacy explicit API: successive final groups flush at engine recovery rate',()=>{const m=manager();m.addPotential(20,'last');m.beginFinalSpend('End');m.tick(0,host);m.tick(1,host);m.tick(1,host);assert.equal(m.spent,20);assert.ok(m.finalComplete);});
+test('legacy explicit API: new budget after flush resumes normal preparation',()=>{const m=manager();m.beginFinalSpend('End');m.applyOnce('new',{add:100});m.updateConfig(fixture);assert.equal(m.finalSpend,false);assert.ok(m.next);});
 test('end stops scheduling without defeat credit',()=>{const m=fund(manager());m.living.add('alive');m.end();m.end();const t=m.time;m.tick(10,host);assert.equal(m.time,t);assert.equal(m.living.size,1);assert.equal(m.next,null);});
 console.log(`${count} standalone scheduler checks passed`);

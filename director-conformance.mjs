@@ -1,3 +1,4 @@
+// Frozen default-mode compatibility vectors; they do not certify budget-aware tails.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {EncounterManager} from './dist/core/encounter-manager.mjs';

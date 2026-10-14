@@ -1,31 +1,5 @@
-CURRENT V17 NOTE: see the V17 contract appendix at the end. Earlier final-spend
-text describes the retained legacy API, not current boss behavior.
-
-V13 encounter selection update, 13 October 2026
-The current core includes reusable ordered/random encounter lists, pure capability
-compilation and standalone group composition. Read SELECTION-PORT-GUIDE.txt for
-the added data/adapter contract. Current totals: 188 full checks, 75 extracted.
-All earlier V9-V12 verification notes below are historical.
-
-V12 host-only player tuning, 13 October 2026
-Director core and its 42 standalone checks are unchanged. Current full runner
-has 147 checks. See CHANGELOG-V12.txt for stepped stats and capacity rules.
-Earlier verification notes below are historical.
-
-V11 host-only potion update, 13 October 2026
-Director core and its 42 standalone checks are unchanged. Current full runner
-has 127 checks. See CHANGELOG-V11.txt for automatic potions and leader refills.
-V10 verification notes below are historical.
-
-V10 host-only update, 13 October 2026
-Director core and its 42 standalone checks are unchanged. Current full runner
-has 112 checks. Player approaches and quiet regen changed; see CHANGELOG-V10.txt.
-The V9 detail below remains the Director contract; its full-suite totals are
-historical. Default uninterrupted runs no longer pass the former completion
-expectations. Progression-success fixtures explicitly use power 72.
-
 Encounter Director extraction and port guide
-13 October 2026
+Current V18, reviewed 14 October 2026
 
 The director is a standalone deterministic library. Copy dist/core as a unit.
 It has no imports from the game, UI, display, browser storage or telemetry.
@@ -45,6 +19,13 @@ dist/core/fuel-ledger.mjs      Potential, Available, spent/introduction audit,
                                transfers and opaque source provenance.
 dist/core/group-composer.mjs   Authored cores, required tags, ordered preference
                                pruning, completion and hard pack limits.
+dist/core/composition-budget.mjs Shared ranking/final-tail expansion.
+dist/core/encounter-list.mjs   Ordered/deck inventories and validation.
+dist/core/encounter-opportunities.mjs Scoped capability/budget compilation.
+dist/core/standalone-composer.mjs Fixed complete authored recipes.
+dist/core/composition-limits.mjs Shared hard limits.
+dist/core/seeded-random.mjs    Portable independent seeded stream.
+
 dist/core/portal-selection.mjs Tagged eligible portal ranking and safe fallback.
 dist/core/encounter-manager.mjs Preparation, passive forecasts, dispatch,
                                recovery, idempotent messages and final spending.
@@ -96,7 +77,7 @@ wave, or implicit new fuel is created. Available residue is preserved.
 
 Funding determines eligibility. A funded prepared group commits on the first
 safe engine-ready update. Runtime recovery is uniformly one second in the toy;
-it is not a personality parameter. Runtime warning lead is 1.1 seconds.
+it is not a personality parameter. Core warning default is 1.1s; the demo injects 6s.
 An unfunded group forecasts affordability only if remaining introduced Potential
 can cover its shortfall at the current effective flow rate. The selected door
 blinks during that lead window. A bonus release that funds the group completes
@@ -112,11 +93,16 @@ IDs using the prepared group's preferences and host safety checks. The host
 creates exactly the designated units at the designated portal position.
 The core receives neither room identity nor geometry or positions.
 
-Final spending is an explicit host-authorized exception. It releases remaining
-introduced Potential, cancels the old commitment/forecast and buys affordable
-groups or ad hoc units. Required composition tags can relax in this mode;
-member, Champion, average-cost and declared compatibility limits remain hard.
-Sub-cheapest residue is unused. Living enemies are not fabricated as defeats.
+CURRENT BUDGET MODE
+Construct with runtime:{budgetAwareComposition:true} for current design.
+Default false is retained compatibility, not the current demo policy. New groups
+fit Available+Potential. composition-budget.mjs folds a too-small terminal tail
+into expandable groups; half the actual added cost transfers immediately.
+Standalone membership stays fixed. Terminal ad hoc composition obeys hard limits.
+budgetComplete records no further fundable group, with honest residue. New fuel
+can resume it. It says nothing about living enemies. Boss go-time/stats live in
+the game/ZoneHost and never enter this library or call beginFinalSpend.
+The explicit beginFinalSpend API remains for compatibility tests/consumers only.
 
 Host adapter and update sequence
 --------------------------------
@@ -171,22 +157,16 @@ inside callbacks or concurrently with fuel commitment.
 
 Validation and portable vectors
 -------------------------------
-node core-tests.mjs                  30 standalone director checks
-node core-component-tests.mjs         6 isolated core component checks
-node verify-v5.mjs                   20 combat and full-playthrough checks
-node verify-v7.mjs                    9 progression/reset checks
-node verify-v8.mjs                    7 doorway/host checks
-node verify-v9.mjs                   21 boundary, baseline and telemetry checks
-node director-conformance.mjs         6 portable golden vectors
-node run-checks.mjs                  All 99 checks plus module syntax checks
-
-The extraction package intentionally excludes UI, game, display, Site identity
-and browser assets. Run node run-director-checks.mjs for its 42 standalone checks with Node 18+
-and the plain fixture. The other game/UI tests belong to the full source package.
-director-conformance-vectors.json contains language-neutral inputs/actions and
-expected funded commits, portal IDs, members, costs and resulting fuel/status.
-The future C# port can replay the same vectors. These lock the observed JS
-contract; independent unit assertions cover the underlying funding rules.
+node run-director-checks.mjs: current 87 cases and core syntax, no game/UI/display.
+node run-checks.mjs: current 258 cases and runtime module syntax.
+Single inventory: check-suites.mjs; executor: run-check-suites.mjs.
+Include both files with the extraction runner, suites, core fixture and vectors.
+Latest handout: outputs/encounter-director-v17-audit-20261014-engineering.zip
+in the project workspace. Historical V17 handout remains the earlier81-case copy.
+The frozen director-conformance-vectors.json covers DEFAULT legacy mode. It
+does not prove current tail folding; budget-tests.mjs has 12 current-mode semantic
+checks, including funding/forecast/recovery/failure. Selection golden vector is
+still current for the portable seeded draw algorithm. No C# compile was performed.
 
 Before behavioral corrections, the module-only refactor matched 15 deterministic
 full-run trace hashes exactly, across all five personalities and three approaches.
@@ -204,39 +184,11 @@ Refuge route. Source-filtered releases are already supported by the ledger.
 Scripted lieutenants, guardians and bosses are game-host actors outside Director
 fuel. Journal results state this distinction so pressure and spending are not
 mistaken for the same total. Ending early records remaining defenders without
-granting defeats. Final spend completion is not itself proof all enemies died.
+granting defeats. Budget completion is not proof all enemies died.
 Compatibility supports declared variant-ID pairs (including self-repeat bans).
 The current illustrative catalogs declare no such pairs. More general engine
 compatibility policies can be added as pure composer constraints with new tests.
-Composition is deterministic and may repeatedly choose the same core. Enemy
-roles still share the cost-based abstract damage model; no new role mechanics,
-player-power sliders or room-release permutations were added in this cleanup.
-The original design DOCX and prior release packages remain historical sources;
-this guide and current typed API describe the executable V9 contract.
-
-V17 -- REMAINING BUDGET AND BOSS GO-TIME (supersedes boss flush / 35-point rules)
-The demo opts into Director runtime budgetAwareComposition:true. Core default
-false retains legacy consumers/golden vectors; an extracting host should enable
-this option for the current design. Composition is capped by Available+Potential.
-Only newly composed groups are resized; frozen N+1 remains frozen. Expandable
-groups absorb a projected remaining tail smaller than the cheapest currently
-eligible composed option. Preserve the selected core; enforce hard pack limits.
-Transfer half the actual added composition cost immediately, capped by Potential.
-Standalone breaches never inflate. If no listed recipe fits remaining balance,
-compose an affordable terminal pack; unspendable residue remains recorded.
-budgetComplete means no next fundable group, not no living opposition. New fuel
-resumes preparation. Missing portal/content opportunities are errors, not clears.
-beginFinalSpend remains a legacy explicit API; bosses no longer call it.
-
-Boss timing belongs to ZoneHost/BossClock, outside the Director. Demo defaults:
-long 10s after last-room entry with living opposition; short 6s after BOTH no
-living actors and no scheduled/fundable groups, in ANY room. A lull is insufficient.
-Completing during a long timer subtracts long-short (4s) from its old deadline;
-it never starts a fresh six seconds and can become immediately due. One boss per
-zone. Boss arrival preserves ledger and N+1. Entry zone has no scripted leader.
-Boss stats: 20 equivalent, 550 HP, damageMultiplier .8 -> baseline DPS 3.84;
-zero Director fuel cost. Guardians remain 4 equivalent, 88 HP, .96 DPS.
-Default targeting and spill: supports first, then lowest remaining HP, stable ID
-ties. Explicit clicks/elite policy still choose the initial eligible target.
-Scripted arrivals are stated in Journal. Display-only gold halo identifies bosses.
-Production Last Epoch integration and JavaScript-to-C# translation remain untested.
+Composition is deterministic; seeded card draws shape variety. Role mechanics
+are abstract. Scripted bosses have separate host-only tuning; no combat stats or
+player-power knowledge belongs in the Director. Current guides describe V17,
+not the original DOCX. Historical snapshots remain evidence, not live contracts.

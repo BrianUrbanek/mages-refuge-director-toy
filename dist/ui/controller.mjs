@@ -6,6 +6,8 @@ import { SimulationClock } from "./simulation-clock.mjs";
 import { colorForActor } from "./appearance.mjs";
 import { escapeHtml as esc } from "./format.mjs";
 import { createPlayerStatsEditor } from "./player-stats-editor.mjs";
+import { ArenaView } from "../display/arena-view.mjs";
+import { mountReleaseNotes } from "./release-notes.mjs";
 
 /** Composition root: commands go inward; detached read models flow outward. */
 export function mountRefuge(document, window) {
@@ -17,6 +19,17 @@ export function mountRefuge(document, window) {
   const crowd = new CrowdView($("crowdCanvas"), (id) => sim.selectTarget(id), {
     colorForActor,
   });
+  const arena = new ArenaView({
+    arena: document.querySelector(".arena"),
+    traveler: document.querySelector(".traveler"),
+    front: $("entrance-front"),
+    rear: $("entrance-rear"),
+    notice: $("travelNotice"),
+    floorLabel: $("floorLabel"),
+    reducedMotion: () =>
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  });
+  mountReleaseNotes(document);
   const refresh = () => {
     const state = sim.viewState();
     renderer.render(state, { running: clock.running, store: store.snapshot() });
@@ -25,7 +38,11 @@ export function mountRefuge(document, window) {
   const clock = new SimulationClock({
     step: (dt) => sim.tick(dt),
     isTerminal: () => sim.isTerminal(),
-    paint: (dt) => crowd.render(sim.sceneSnapshot(), dt),
+    paint: (dt) => {
+      const scene = sim.sceneSnapshot(),
+        projection = arena.render(scene, dt * clock.speed);
+      crowd.render(scene, dt, projection);
+    },
     refresh,
   });
   const action = (fn) => {
@@ -47,6 +64,7 @@ export function mountRefuge(document, window) {
     if ($("bossExclude").value && !sanctum)
       sim.excludeBoss($("bossExclude").value);
     crowd.reset();
+    arena.reset();
     renderer.reset();
     clock.pause();
     selectPanel("director");

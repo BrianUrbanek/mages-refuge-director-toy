@@ -106,4 +106,86 @@ test("fixed breach recipes remain unexpanded within total balance", () => {
   assert.equal(m.next.foldedFuel, undefined);
   assert.equal(m.available, 0);
 });
+test("current budget mode forecasts passive funding and commits at affordability", () => {
+  const m = manager(20);
+  m.transfer(6);
+  m.tick(0.01, adapter);
+  assert.ok(m.dispatch);
+  assert.equal(m.spent, 0);
+  m.tick(0.99, adapter);
+  assert.equal(m.spent, 8);
+  assert.equal(m.lastSpawn, 1);
+  m.verify();
+});
+test("current budget mode accepts early event funding without a telegraph gate", () => {
+  const m = manager(20);
+  m.transfer(6);
+  m.tick(0.01, adapter);
+  assert.ok(m.dispatch);
+  m.transfer(2);
+  m.tick(0, adapter);
+  assert.equal(m.spent, 8);
+  assert.equal(m.lastSpawn, 0.01);
+  assert.equal(m.dispatch, null);
+  m.verify();
+});
+test("current budget mode retains the one-second engine recovery guard", () => {
+  const m = manager(24);
+  m.transfer(Infinity);
+  m.tick(0, adapter);
+  m.tick(0.99, adapter);
+  assert.equal(m.spent, 8);
+  assert.equal(m.snapshot().waitReason, "engine-recovery");
+  m.tick(0.01, adapter);
+  assert.equal(m.spent, 16);
+  m.verify();
+});
+test("failed folded arrival preserves plan and does not transfer the tail twice", () => {
+  const m = manager(11);
+  m.transfer(9);
+  const failed = { ...adapter, commitSpawn: () => ({ success: false }) };
+  m.tick(0, failed);
+  const plan = m.next,
+    fuel = m.snapshot();
+  assert.equal(plan.cost, 10);
+  assert.equal(plan.foldedTransferred, 1);
+  m.tick(0, failed);
+  assert.equal(m.next, plan);
+  assert.equal(m.available, fuel.available);
+  assert.equal(m.potential, fuel.potential);
+  assert.equal(m.spent, 0);
+  m.tick(0, adapter);
+  assert.equal(m.spent, 10);
+});
+test("missing portal opportunities report configuration failure rather than exhaustion", () => {
+  const m = new EncounterManager({
+    config: {
+      ...fixture,
+      selection: {
+        id: "normal",
+        mode: "ordered",
+        cards: [{ id: "normal", kind: "normal" }],
+      },
+    },
+    runtime: { budgetAwareComposition: true },
+  });
+  m.addPotential(20, "zone");
+  m.updatePortals([{ id: "seal", eligible: true, breachable: true, tags: [] }]);
+  m.tick(0, adapter);
+  assert.ok(m.error);
+  assert.equal(m.budgetComplete, false);
+  assert.equal(m.spent, 0);
+});
+test("tail expansion obeys member limits and only transfers actual added cost", () => {
+  const m = new EncounterManager({
+    config: { ...fixture, rules: { ...fixture.rules, maxMembers: 4 } },
+    runtime: { budgetAwareComposition: true },
+  });
+  m.addPotential(11, "zone");
+  m.tick(0, adapter);
+  assert.equal(m.next.members.length, 4);
+  assert.equal(m.next.cost, 8);
+  assert.equal(m.available, 0);
+  assert.equal(m.potential, 11);
+});
 console.log(`${checks} independent remaining-budget checks passed.`);

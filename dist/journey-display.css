@@ -1,0 +1,14 @@
+/* Presentation only: room motion never gates simulation or player commands. */
+.brand-lockup{display:flex;align-items:baseline;gap:9px;min-width:0}
+button.version-note{border:0;background:transparent;color:var(--muted);padding:4px 2px;font:10px 'DM Sans',sans-serif;letter-spacing:.08em;opacity:.8;white-space:nowrap}
+button.version-note:hover{color:var(--gold);background:transparent;opacity:1}
+button.version-note:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+.travel-notice{position:absolute;z-index:4;top:16px;left:50%;transform:translateX(-50%);max-width:70%;padding:7px 12px;background:#111d1dec;border:1px solid #bbab7799;border-radius:4px;color:#f4dfaa;font-size:11px;text-align:center;pointer-events:none}
+.floor-label{position:absolute;bottom:8px;right:12px;color:#e6d7b7;font-size:10px;letter-spacing:.08em;text-shadow:0 1px 4px #000;pointer-events:none;z-index:3}
+.arena.is-crossing .traveler .icon{filter:invert(.95) sepia(.7) drop-shadow(0 0 7px #f0ce82)}
+#patchNotes{width:min(620px,90vw)}
+#patchNotesList details{border-top:1px solid var(--line);padding:13px 0}
+#patchNotesList summary{cursor:pointer;color:var(--gold);font-weight:600}
+#patchNotesList ul{padding-left:20px;margin-bottom:4px}
+#patchNotesList li{font-size:13px;color:var(--muted);line-height:1.55}
+@media(max-width:600px){.brand-lockup{gap:7px}.travel-notice{top:8px;max-width:65%;font-size:10px}.floor-label{font-size:8px;max-width:45%;text-align:right}}

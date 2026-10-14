@@ -1,0 +1,15 @@
+V18 -- ROOM TRAVEL, FLOOR ART AND PATCH NOTES
+Display-only front-gate exit, brief disappearance and rear-arch re-entry. Timed
+projection changes no fuel, damage, movement permissions or spawn cadence. Manual
+paused doors still animate. Speed scales visual motion; reduced motion snaps.
+Three new generated environments: amber barracks, blue/violet mirrors, red basalt
+inner sanctum. Original Beacon art retained. Optional wings reuse themed art with
+distinct washes. UI door rectangles anchor the Traveler path at every screen size.
+Attack/burst rendering follows displayed Traveler without changing logical targets.
+Subtle V18 title button opens newest-first patch notes; older releases collapse.
+Warning explanation clarifies that Steady waits for ACTIVE forecasts, not a future
+group outside the6s window; entry can legitimately fund back-to-back groups.
+Conditional transfer rules and quiet-regen tuning remain proposals, unchanged.
+Earlier local audit updates are included: centralized runners, corrected guides,
+250 audited checks and updated extraction example. Eight new V18 checks bring
+full total to258; standalone Director remains87 and its runtime code is unchanged.

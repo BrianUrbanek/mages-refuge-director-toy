@@ -6,6 +6,7 @@ import { ZoneHost } from "./zone-host.mjs";
 import { CombatModel } from "./combat-model.mjs";
 import { resolvePlayerStats } from "./player-stats.mjs";
 import { scriptedLeaderStats } from "./scripted-leaders.mjs";
+import { APP_VERSION } from "../version.mjs";
 import { steadyReservesReady, BURST_STRATEGIES } from "./player-policy.mjs";
 import { createSpawnAdapter, canSpawnAtPortal } from "./spawn-adapter.mjs";
 import { EncounterManager } from "../core/encounter-manager.mjs";
@@ -886,6 +887,12 @@ export class RefugeSimulation {
   }
   sceneSnapshot() {
     return structuredClone({
+      location: {
+        roomId: this.current().id,
+        zoneId: this.area,
+        zoneName: this.areaDef().name,
+        roomName: this.current().name,
+      },
       time: this.t,
       actors: this.actors,
       effects: this.effects,
@@ -895,7 +902,7 @@ export class RefugeSimulation {
   exportTrace() {
     this.journal.flushPassive(this.t, this.context());
     return {
-      spec: "Mage's Refuge v17 · Encounter Director selection v17",
+      spec: `Mage's Refuge v${APP_VERSION} · Encounter Director selection v17`,
       settings: {
         depth: this.depth,
         personality: this.personality,
@@ -915,7 +922,7 @@ export class RefugeSimulation {
   }
   exportJournalLog() {
     return (
-      `Mage's Refuge v17 · ${this.progression} · ${this.burstStrategy} charges · ${this.personality} · seed ${this.seed}\n` +
+      `Mage's Refuge v${APP_VERSION} · ${this.progression} · ${this.burstStrategy} charges · ${this.personality} · seed ${this.seed}\n` +
       formatJournalLog(this.journal.entries)
     );
   }

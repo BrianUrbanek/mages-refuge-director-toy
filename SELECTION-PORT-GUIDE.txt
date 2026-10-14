@@ -1,7 +1,4 @@
-CURRENT V17 NOTE: see the V17 contract appendix at the end. Earlier final-spend
-text describes the retained legacy API, not current boss behavior.
-
-Encounter selection and sealed-door contract -- V13, 13 October 2026
+Encounter selection and sealed-door contract -- current V18, reviewed 14 October 2026
 
 This guide supplements DIRECTOR-PORT-GUIDE.txt. The new modules are all in
 dist/core and run without the Refuge game, UI, display, browser or storage.
@@ -10,7 +7,7 @@ MODULE OWNERSHIP
 encounter-list.mjs / .d.ts: validation, per-list inventory/cycles, ordered or
   random consumption, bounded reshuffle handling, detached state and decisions.
 encounter-opportunities.mjs: pure context compilation/resolution. Portal and group
-  tags remain distinct. It does not look at fuel, asset readiness or combat.
+  tags remain distinct. It receives an optional total-budget cap, not a ledger, assets or combat.
 standalone-composer.mjs: exact authored membership and cost, without padding to
   a normal target or applying normal required-role coverage.
 composition-limits.mjs: shared member/Champion/average-cost/compatibility checks.
@@ -44,7 +41,8 @@ retain weighting without becoming indistinguishable copies of one inventory item
 CONTEXT AND SELECTION
 On preparation, compile valid cards from the current catalog and portal list.
 No suitable group/portal means exclusion. Temporary asset load, host occupancy or
-insufficient Available do NOT invalidate a card. Composition checks are shared;
+insufficient Available do NOT invalidate a card. A total-budget cap can filter
+recipes for a NEW preparation; it never redraws frozen N+1 for mere unfunding. Composition checks are shared;
 standalone does not mean exempt from hard declared pack limits.
 Ordered mode consumes valid cards in authored order. Random mode chooses a
 remaining card, removes it and refills only when exhausted. A reshuffle card
@@ -85,13 +83,16 @@ Demo side seals are zone-scoped IDs, two per activated zone, persisting through
 its rooms. Future per-room opportunities can be supplied without changing core.
 Settings entrance toggles enable/disable an opportunity; they do not break seals.
 
-FINAL SPEND AND COMPATIBILITY
-Final spending explicitly cancels ordinary N+1 and uses affordable cleanup; it
-bypasses the encounter list and does not consume cards. Existing configs without
-selection retain the old ordinal composition behavior and existing golden vectors.
-The one-second technical recovery and normal 1.1-second warning lead are unchanged.
-This update implements list selection/breaches, not the separately discussed
-longer-warning or condensed-combat Journal/Copy-log proposals.
+TOTAL BUDGET AND COMPATIBILITY
+Enable manager runtime.budgetAwareComposition for current demo behavior.
+EncounterList.select(config,portals,ordinal,totalBudget) and opportunity resolution
+accept a total cap (default Infinity for standalone callers). Normal composition
+caps its target; fixed recipes above the cap are excluded. The manager folds a
+small tail only into expandable groups and accelerates half the ACTUAL added cost.
+If no listed recipe fits, it can compose affordable terminal units. No funding
+flush on boss arrival. Missing opportunities remain errors, not fake exhaustion.
+Legacy beginFinalSpend remains explicit and bypasses the list; the toy never uses
+it for bosses. Engine recovery1s; warning core-default1.1s/demo6s remain separate.
 
 OBSERVABILITY AND PORTING
 Snapshots include list ID/mode, remaining IDs, excluded IDs, cycle and RNG state.
@@ -106,38 +107,11 @@ instance of the same utility. Preserve ordinal ID tie breaks during C# translati
 selection-golden-vector.json records a language-neutral twelve-draw example.
 
 VERIFICATION
-selection-tests.mjs has 33 tests covering both modes, filtering, identity/state,
-reshuffles, policies, exact membership, funding waits, cancellation, post-commit
-portal updates, invalid inputs and the golden vector. The extracted core runner
-has 75 tests total, without game/UI/display. Full runner has 188 plus syntax checks;
-verify-v13.mjs adds eight host/content/overlap/reset/seed/progression checks.
-Source and standalone ZIPs are versioned V13; prior evidence stays preserved.
-Actual C# compilation, Last Epoch engine integration, navigation and production
-asset spawning remain untested. This is a portable JS reference implementation.
-
-V17 -- REMAINING BUDGET AND BOSS GO-TIME (supersedes boss flush / 35-point rules)
-The demo opts into Director runtime budgetAwareComposition:true. Core default
-false retains legacy consumers/golden vectors; an extracting host should enable
-this option for the current design. Composition is capped by Available+Potential.
-Only newly composed groups are resized; frozen N+1 remains frozen. Expandable
-groups absorb a projected remaining tail smaller than the cheapest currently
-eligible composed option. Preserve the selected core; enforce hard pack limits.
-Transfer half the actual added composition cost immediately, capped by Potential.
-Standalone breaches never inflate. If no listed recipe fits remaining balance,
-compose an affordable terminal pack; unspendable residue remains recorded.
-budgetComplete means no next fundable group, not no living opposition. New fuel
-resumes preparation. Missing portal/content opportunities are errors, not clears.
-beginFinalSpend remains a legacy explicit API; bosses no longer call it.
-
-Boss timing belongs to ZoneHost/BossClock, outside the Director. Demo defaults:
-long 10s after last-room entry with living opposition; short 6s after BOTH no
-living actors and no scheduled/fundable groups, in ANY room. A lull is insufficient.
-Completing during a long timer subtracts long-short (4s) from its old deadline;
-it never starts a fresh six seconds and can become immediately due. One boss per
-zone. Boss arrival preserves ledger and N+1. Entry zone has no scripted leader.
-Boss stats: 20 equivalent, 550 HP, damageMultiplier .8 -> baseline DPS 3.84;
-zero Director fuel cost. Guardians remain 4 equivalent, 88 HP, .96 DPS.
-Default targeting and spill: supports first, then lowest remaining HP, stable ID
-ties. Explicit clicks/elite policy still choose the initial eligible target.
-Scripted arrivals are stated in Journal. Display-only gold halo identifies bosses.
-Production Last Epoch integration and JavaScript-to-C# translation remain untested.
+selection-tests.mjs:33 selector/shared/default-mode tests. budget-tests.mjs:12
+current total-budget tests. Extracted runner:87 cases plus core syntax. Full
+runner:258 cases plus runtime syntax. See check-suites.mjs for scope/purpose.
+The latest audited extraction includes the shared inventory/executor dependencies.
+verify-v13 checks actual demo recipes/seals; verify-v17 checks boss integration.
+Boss timer/combat/glow do not belong in extracted selection code.
+Actual C# compilation, Last Epoch integration, navigation and real assets remain
+untested. This is a portable JS reference with explicit compatibility coverage.

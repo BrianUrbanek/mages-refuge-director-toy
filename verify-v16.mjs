@@ -83,7 +83,7 @@ test("supports absorb ordinary and burst fire including selected-target override
     assert.equal(c.actors[1].hp, 200 - (charges ? 72 : 18));
   }
 });
-test("spill continues through supports before other nearby enemies without losing damage", () => {
+test("spill continues through supports before other eligible enemies without losing damage", () => {
   const c = new CombatModel();
   c.charges = 0;
   c.actors = [

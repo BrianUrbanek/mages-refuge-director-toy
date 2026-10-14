@@ -315,7 +315,7 @@ test("invalid returned portal descriptors cannot spend fuel", () => {
   assert.throws(() => m.tick(0, adapter));
   assert.equal(m.spent, 0);
 });
-test("final spending bypasses deck and does not consume its cards", () => {
+test("legacy explicit API: final spending bypasses deck and does not consume its cards", () => {
   const { m } = setup();
   const before = m.snapshot().selection;
   m.addPotential(5, "zone");
