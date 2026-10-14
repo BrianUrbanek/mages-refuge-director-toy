@@ -1,0 +1,23 @@
+name: Import V15 source update (one time)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Expand reviewed source package
+        run: |
+          test -d dist
+          unzip -o refuge-v15-github-source.zip -x '.github/*'
+      - name: Verify imported app
+        run: node run-checks.mjs
+      - name: Commit browsable source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dist .gitignore README.md *.mjs *.json *.txt
+          git commit -m 'Update to V15 warnings and combat summaries'
+          git push origin HEAD:main
