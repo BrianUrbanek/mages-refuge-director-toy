@@ -262,7 +262,7 @@ export const APPROACHES = {
   steady: {
     name: "Slow and steady",
     description:
-      "Clear all enemies, then wait for at least 80% health and full DPS charges. Stay for any telegraphed wave.",
+      "Clear all enemies, then 70%+ health with 2 charges, or full health with 1 charge. Stay for any telegraphed wave.",
     dwell: 0,
   },
   press: {

@@ -1,0 +1,24 @@
+V15 -- reserve-aware charged pulses and alternate Steady readiness
+
+Pure rules live in game/player-policy.mjs; no Director changes.
+Arrivals trigger one immediate charged pulse if at least two charges exist,
+then restart the half-second attack interval. During combat, surplus charges
+are spent; the last is used when recharge progress reaches 8 of 10 seconds or
+health reaches 50% of selected maximum. Otherwise it stays reserved.
+Low-health intent is retained across potion healing until the next pulse;
+it clears after spending or clearing the battlefield. Damage remains 4x passive.
+Single-slot capacity cannot anticipate a nonexistent second charge.
+
+Steady still requires a clear battlefield and no pending forecast. Reserves may
+be either >=70% max HP with at least two charges, or full max HP with one charge.
+Higher charge capacities use the same two-charge threshold. Full health scales
+with HP sliders. Press and Charge progression rules otherwise remain unchanged.
+
+Leader metadata is attached before its arrival pulse, because high-power bursts
+can defeat a guardian immediately. Journal begins the fight before the pulse,
+so immediate clears and burst/leader counts are recorded correctly.
+
+212 checks plus syntax validation pass, with 12 focused policy regressions.
+Existing tests updated only where they asserted superseded charge/80% rules.
+Twenty-point isolated wave still clears in 9.5 seconds with 2 charged pulses,
+versus 12.5 seconds without charges. Production combat/C# integration untested.

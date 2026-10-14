@@ -5,6 +5,7 @@ import { createRandom } from "./random.mjs";
 import { ZoneHost } from "./zone-host.mjs";
 import { CombatModel } from "./combat-model.mjs";
 import { resolvePlayerStats } from "./player-stats.mjs";
+import { steadyReservesReady } from "./player-policy.mjs";
 import { createSpawnAdapter, canSpawnAtPortal } from "./spawn-adapter.mjs";
 import { EncounterManager } from "../core/encounter-manager.mjs";
 import { AREAS, APPROACHES, MENUS, BOSSES, configFor } from "../demo-data.mjs";
@@ -333,6 +334,7 @@ export class RefugeSimulation {
             fuel: e.group.cost,
           },
         );
+        this.combat.onArrival();
         this.observe(true);
         this.note(
           `${e.group.members.length} defenders via ${e.entrance}; ${e.group.cost.toFixed(1)} fuel (${e.origin}).`,
@@ -417,7 +419,7 @@ export class RefugeSimulation {
     const portal = this.entrances.find((e) => e.slot === slot);
     return portal ? { ...portal.position } : { x: 0.5, y: 0.3 };
   }
-  spawnLeader(key, name) {
+  spawnLeader(key, name, metadata = {}) {
     const points =
         key === "liath"
           ? 24
@@ -443,11 +445,13 @@ export class RefugeSimulation {
       position: this.spawnPosition("stage"),
       age: 0,
       footprint: 3,
+      ...metadata,
     });
     this.effect("boss", { name });
     this.journal.combat.arrival(this.t, this.observation(), this.context(), {
       scriptedLeaders: 1,
     });
+    this.combat.onArrival();
   }
 
   destinations() {
@@ -502,8 +506,7 @@ export class RefugeSimulation {
     )
       return;
     this.events.add(key);
-    this.spawnLeader(key, "Linked Crystal Guardian");
-    Object.assign(this.actors.at(-1), {
+    this.spawnLeader(key, "Linked Crystal Guardian", {
       doorTo: to || this.routeNext(),
       doorFrom: this.area,
     });
@@ -646,10 +649,11 @@ export class RefugeSimulation {
     if (this.dispatch) return false;
     if (this.actors.length) return false;
     if (this.approach === "steady")
-      return (
-        this.hp >= this.combat.maxHp * 0.8 &&
-        this.charges === this.combat.maxCharges
-      );
+      return steadyReservesReady({
+        hp: this.hp,
+        maxHp: this.combat.maxHp,
+        charges: this.charges,
+      });
     return true;
   }
   progressStatus() {
@@ -668,7 +672,7 @@ export class RefugeSimulation {
       return "Incoming wave telegraphed · waiting here for its arrival.";
     if (!this.approachReady())
       return this.approach === "steady"
-        ? `Slow and steady · clear all enemies, then recover to at least ${this.combat.maxHp * 0.8} HP and ${this.combat.maxCharges} charges.`
+        ? `Slow and steady · clear all enemies, then ${this.combat.maxHp * 0.7}+ HP with 2 charges, or full health with 1 charge.`
         : "Press forward · clear all enemies, then advance immediately without resting.";
     return (
       "Next: " +
@@ -853,7 +857,7 @@ export class RefugeSimulation {
   exportTrace() {
     this.journal.flushPassive(this.t, this.context());
     return {
-      spec: "Mage's Refuge v14 · Encounter Director selection v13",
+      spec: "Mage's Refuge v15 · Encounter Director selection v13",
       settings: {
         depth: this.depth,
         personality: this.personality,
@@ -871,7 +875,7 @@ export class RefugeSimulation {
   }
   exportJournalLog() {
     return (
-      `Mage's Refuge v14 · ${this.progression} · ${this.personality} · seed ${this.seed}\n` +
+      `Mage's Refuge v15 · ${this.progression} · ${this.personality} · seed ${this.seed}\n` +
       formatJournalLog(this.journal.entries)
     );
   }

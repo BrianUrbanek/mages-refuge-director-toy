@@ -90,17 +90,17 @@ test("Sanctum restart preserves activity and custom stats", () => {
   assert.equal(s.combat.potions, 3);
   assert.equal(s.earned, 0);
 });
-test("Steady uses 80 percent HP and selected full charge capacity", () => {
+test("Steady uses 70 percent HP with two charges at scaled health", () => {
   const s = new RefugeSimulation({
     playerStats: { maxHp: 200, maxCharges: 4 },
   });
   s.actors = [];
-  s.hp = 159.99;
+  s.hp = 139.99;
   assert.equal(s.approachReady(), false);
-  s.hp = 160;
-  s.charges = 3;
+  s.hp = 140;
+  s.charges = 1;
   assert.equal(s.approachReady(), false);
-  s.charges = 4;
+  s.charges = 2;
   assert.equal(s.approachReady(), true);
 });
 test("Press ignores selected reserves after clearing", () => {
@@ -123,17 +123,19 @@ test("base damage remains source of burst damage", () => {
     assert.equal(9999 - c.actors[0].hp, power * 0.5 * 4);
   }
 });
-test("regen scales quiet recovery and burst threshold", () => {
+test("regen scales quiet recovery but does not change the health-based reserve rule", () => {
   const c = new CombatModel({ stats: { regen: 3 } });
   c.hp = 60;
   c.step(1, 1);
   assert.equal(c.hp, 75);
+  c.charges = 1;
   c.actors = [actor(1, 30)];
   c.pulse();
-  assert.equal(c.charges, 2);
+  assert.equal(c.charges, 1);
+  c.hp = 50;
   c.actors = [actor(1, 37.5)];
   c.pulse();
-  assert.equal(c.charges, 1);
+  assert.equal(c.charges, 0);
 });
 test("charge refill caps at selected count without hidden reserve", () => {
   const c = new CombatModel({ stats: { maxCharges: 4 } });

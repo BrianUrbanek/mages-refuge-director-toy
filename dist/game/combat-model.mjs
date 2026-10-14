@@ -1,4 +1,5 @@
 import { resolvePlayerStats } from "./player-stats.mjs";
+import { burstReason } from "./player-policy.mjs";
 /** Abstract combat host: actor health, movement, spill pulses and player reserves. */
 export class CombatModel {
   constructor({
@@ -28,6 +29,7 @@ export class CombatModel {
       pressurePerPoint: 0.24,
       pulseInterval: 0.5,
       attackProgress: 0,
+      emergencyBurstPending: false,
       minHp: resolved.maxHp,
       potions: resolved.maxPotions,
       potionProgress: 0,
@@ -54,17 +56,25 @@ export class CombatModel {
       Math.max(0, this.hp + (this.effectiveRegen() - this.incomingDps()) * dt),
     );
     this.minHp = Math.min(this.minHp, this.hp);
+    const healthForDecision = this.hp;
+    if (
+      this.actors.length &&
+      this.charges > 0 &&
+      healthForDecision <= this.maxHp * 0.5
+    )
+      this.emergencyBurstPending = true;
     this.usePotion();
     if (this.hp <= 0) return false;
     this.attackProgress += dt;
     while (this.attackProgress + 1e-9 >= this.pulseInterval) {
       this.attackProgress -= this.pulseInterval;
-      this.pulse();
+      this.pulse({ healthForDecision });
     }
     return true;
   }
   defeat(actor) {
     this.actors = this.actors.filter((a) => a !== actor);
+    if (!this.actors.length) this.emergencyBurstPending = false;
     this.kills++;
     this.effect("death", { actorId: actor.id });
     if (actor.leader) this.refillPotion("scripted-leader", actor.id);
@@ -169,14 +179,30 @@ export class CombatModel {
       a.position.y += (ty - a.position.y) * f;
     }
   }
-  pulse() {
+  onArrival() {
+    if (!this.actors.length || this.charges < 2) return false;
+    this.attackProgress = 0;
+    this.pulse();
+    return true;
+  }
+  pulse({ healthForDecision = this.hp } = {}) {
     if (!this.actors.length) return;
-    const boosted =
-      this.charges > 0 && this.incomingDps() - this.regen >= 2 * this.regen;
+    const reason = burstReason({
+        charges: this.charges,
+        maxCharges: this.maxCharges,
+        chargeProgress: this.chargeProgress,
+        maxHp: this.maxHp,
+        hp: this.emergencyBurstPending
+          ? Math.min(healthForDecision, this.maxHp * 0.5)
+          : healthForDecision,
+      }),
+      boosted = reason !== null;
     if (boosted) {
+      this.emergencyBurstPending = false;
       this.charges--;
       this.burstCount++;
       this.effect("burst", {
+        reason,
         multiplier: 4,
         damage: this.power * this.pulseInterval * 4,
         chargesRemaining: this.charges,

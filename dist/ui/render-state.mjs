@@ -170,9 +170,13 @@ export function createRenderer(document) {
         ? "+40 HP below 50%"
         : `${fmt(toy.potion.progress)} / 30 fuel to refill`);
     $("chargeNote").textContent =
-      toy.charges === toy.maxCharges
-        ? "Fully banked · automatic pulse ×4"
-        : "Next charge in " + fmt(10 - toy.chargeProgress) + "s · pulse ×4";
+      toy.charges >= 2
+        ? "Arrival burst ready · pulse ×4"
+        : toy.charges === 1
+          ? toy.maxCharges > 1 && toy.chargeProgress >= 8
+            ? "Recharge imminent · burst ready"
+            : "Reserved for 50% health · pulse ×4"
+          : "Next charge in " + fmt(10 - toy.chargeProgress) + "s · pulse ×4";
     $("regenNote").textContent =
       `Regen: ${toy.playerStats.regen} in combat · ${toy.playerStats.regen * 5} while clear`;
     $("pressureDps").textContent =
