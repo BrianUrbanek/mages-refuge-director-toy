@@ -87,11 +87,10 @@ test("both clearing approaches wait for all overlapping defenders", () => {
     assert.equal(s.approachReady(), true);
   }
 });
-test("press advances on first empty step without health charge dwell or forecast veto", () => {
+test("press advances on first empty step without health charge or dwell gates", () => {
   const s = quiet();
   s.hp = 5;
   s.charges = 0;
-  s.manager.dispatch = { entrance: "entry/front" };
   s.tick(0.05);
   assert.equal(s.sub, 1);
   assert.ok(s.t < 0.1);

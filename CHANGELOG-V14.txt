@@ -1,0 +1,27 @@
+V14 -- forecast-aware player approaches and concise combat Journal
+
+Demo passive-funding warning lead is six seconds, injected by the game host.
+The extractable Director core default remains configurable and otherwise unchanged.
+Funding/readiness still dispatch immediately; warning does not add a spawn delay.
+Sealed standalone breaches remain unannounced. Normal use after opening warns.
+
+Steady and Press do not auto-advance while an outstanding forecast exists.
+Their existing clear/HP/charge requirements still apply. Cancellation unblocks
+movement; Charge and deliberate manual movement can still invite overlap.
+
+Telemetry has a separate CombatSummary aggregator. It starts when opposition
+arrives, merges overlapping groups, and emits exactly once at the first empty
+instant before any leader callback can move/spawn. An interrupted fight is
+labeled overwhelmed/returned, never invented as a clear. Details include time,
+health lost after passive regen, start/end HP, kills, groups/fuel, scripted leaders,
+peak pressure, bursts and potions. Potion healing cannot conceal health loss.
+
+The visible Journal hides per-sample HP, pulse/charge and passive-tick entries.
+Those raw entries remain in the full JSON export and timeline. Arrival, room,
+funding event, potion, Director decision and result entries remain visible.
+Copy log copies the full concise log as readable timestamped text, regardless
+of the active filter/window; failed clipboard access reports use Export instead.
+
+200 current checks pass, including 12 new V14 regressions. Core tests remain
+unchanged. V10's no-forecast-veto assertion was updated to the new user rule.
+No C#/Last Epoch integration or production asset-load performance validation.

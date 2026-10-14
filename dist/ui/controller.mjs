@@ -154,6 +154,18 @@ export function mountRefuge(document, window) {
   };
   $("export").onclick = download;
   $("exportJournal").onclick = download;
+  $("copyJournal").onclick = async () => {
+    const button = $("copyJournal");
+    try {
+      await window.navigator.clipboard.writeText(sim.exportJournalLog());
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Copy unavailable · use Export";
+    }
+    setTimeout(() => {
+      button.textContent = "Copy log";
+    }, 2500);
+  };
   $("resultsButton").onclick = () => {
     selectPanel("journal");
     refresh();

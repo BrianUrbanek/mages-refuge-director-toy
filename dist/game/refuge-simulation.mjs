@@ -1,4 +1,5 @@
 import { RunJournal } from "../telemetry/run-journal.mjs";
+import { formatJournalLog } from "../telemetry/journal-log.mjs";
 import { createViewState } from "./view-state.mjs";
 import { createRandom } from "./random.mjs";
 import { ZoneHost } from "./zone-host.mjs";
@@ -86,6 +87,7 @@ export class RefugeSimulation {
         this.selectionMode,
       ),
       selectionSeed: this.seed,
+      runtime: { warningLeadSeconds: 6 },
     });
     this.consumeEvents();
     this.journal.record(
@@ -322,6 +324,15 @@ export class RefugeSimulation {
           this.actors.push(a);
           this.pendingActors.delete(id);
         }
+        this.journal.combat.arrival(
+          this.t,
+          this.observation(),
+          this.context(),
+          {
+            groups: 1,
+            fuel: e.group.cost,
+          },
+        );
         this.observe(true);
         this.note(
           `${e.group.members.length} defenders via ${e.entrance}; ${e.group.cost.toFixed(1)} fuel (${e.origin}).`,
@@ -434,6 +445,9 @@ export class RefugeSimulation {
       footprint: 3,
     });
     this.effect("boss", { name });
+    this.journal.combat.arrival(this.t, this.observation(), this.context(), {
+      scriptedLeaders: 1,
+    });
   }
 
   destinations() {
@@ -596,6 +610,8 @@ export class RefugeSimulation {
     this.note(e.name + (e.enabled !== false ? " enabled." : " blocked."));
   }
   onDefeat(actor) {
+    // Observe the first empty instant before leader callbacks can enter a room.
+    this.observe();
     this.manager.notifyDefeat(actor.id);
     if (!actor.leader) return;
     this.note(actor.name + " defeated.", "reward");
@@ -627,6 +643,7 @@ export class RefugeSimulation {
   }
   approachReady() {
     if (this.approach === "charge") return true;
+    if (this.dispatch) return false;
     if (this.actors.length) return false;
     if (this.approach === "steady")
       return (
@@ -647,6 +664,8 @@ export class RefugeSimulation {
       return "Holding position · combat, passive regeneration and charge recovery continue.";
     if (!this.gateReady())
       return "Lieutenant checkpoint · defeat the lieutenant and finish spending fuel.";
+    if (this.approach !== "charge" && this.dispatch)
+      return "Incoming wave telegraphed · waiting here for its arrival.";
     if (!this.approachReady())
       return this.approach === "steady"
         ? `Slow and steady · clear all enemies, then recover to at least ${this.combat.maxHp * 0.8} HP and ${this.combat.maxCharges} charges.`
@@ -765,19 +784,21 @@ export class RefugeSimulation {
     };
   }
   observe(force = false) {
-    this.journal.observe(
-      this.t,
-      {
-        health: this.hp,
-        points: this.livingCost(),
-        actors: this.actors.length,
-        incomingDps: this.incomingDps(),
-        potential: this.potential,
-        available: this.available,
-      },
-      this.context(),
-      force,
-    );
+    this.journal.observe(this.t, this.observation(), this.context(), force);
+  }
+  observation() {
+    return {
+      health: this.hp,
+      points: this.livingCost(),
+      actors: this.actors.length,
+      incomingDps: this.incomingDps(),
+      potential: this.potential,
+      available: this.available,
+      bursts: this.burstCount,
+      defeats: this.kills,
+      potionsUsed: this.combat.potionsUsed,
+      potionHealing: this.combat.potionHealing,
+    };
   }
   runMetrics() {
     return structuredClone(
@@ -832,7 +853,7 @@ export class RefugeSimulation {
   exportTrace() {
     this.journal.flushPassive(this.t, this.context());
     return {
-      spec: "Mage's Refuge v13 · Encounter Director selection v13",
+      spec: "Mage's Refuge v14 · Encounter Director selection v13",
       settings: {
         depth: this.depth,
         personality: this.personality,
@@ -847,6 +868,12 @@ export class RefugeSimulation {
       zone: this.zone.snapshot(),
       journal: this.journal.export(),
     };
+  }
+  exportJournalLog() {
+    return (
+      `Mage's Refuge v14 · ${this.progression} · ${this.personality} · seed ${this.seed}\n` +
+      formatJournalLog(this.journal.entries)
+    );
   }
   isTerminal() {
     return this.failed || this.ended || this.victoryReady;

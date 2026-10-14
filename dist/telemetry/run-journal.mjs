@@ -1,3 +1,5 @@
+import { CombatSummary } from "./combat-summary.mjs";
+import { journalLogEntries } from "./journal-log.mjs";
 /** Observational event journal. It cannot mutate the game or the director. */
 export class RunJournal {
   constructor() {
@@ -14,6 +16,15 @@ export class RunJournal {
     this.entryFuel = 0;
     this.passiveFuel = 0;
     this.result = null;
+    this.combat = new CombatSummary((time, data, context) => {
+      this.record(
+        time,
+        "combat-summary",
+        `Combat ${data.outcome} · ${data.duration.toFixed(1)}s · ${data.healthLost.toFixed(1)} HP lost after regen · ${data.startHealth.toFixed(0)} → ${data.endHealth.toFixed(0)} HP · ${data.defeats} defeated · ${data.bursts} bursts · ${data.potions} potions`,
+        data,
+        context,
+      );
+    });
   }
 
   record(time, kind, text, data = {}, context = {}) {
@@ -153,6 +164,7 @@ export class RunJournal {
   }
 
   observe(time, state, context, force = false) {
+    this.combat.observe(time, state, context);
     this.peakPoints = Math.max(this.peakPoints, state.points);
     this.peakActors = Math.max(this.peakActors, state.actors);
     if (!force && time - this.lastSample < 1 - 1e-7) return;
@@ -177,6 +189,7 @@ export class RunJournal {
 
   complete(time, outcome, metrics, context) {
     if (this.result) return;
+    this.combat.finish(time, outcome);
     this.flushPassive(time, context);
     this.result = structuredClone({ ...metrics, outcome });
     this.record(time, "result", `Run ${outcome}`, this.result, context);
@@ -184,10 +197,13 @@ export class RunJournal {
 
   snapshot() {
     const latest = this.samples.at(-1)?.time ?? 0;
+    const log = journalLogEntries(this.entries);
     return structuredClone({
       version: this.version,
-      entries: this.entries.slice(-300),
-      totalEntries: this.entries.length,
+      entries: log.slice(-300),
+      timelineEntries: this.entries.filter((e) => e.time >= latest - 120),
+      totalEntries: log.length,
+      rawEventCount: this.entries.length,
       samples: this.samples.filter((s) => s.time >= latest - 120),
       result: this.result,
     });

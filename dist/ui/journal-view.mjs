@@ -40,7 +40,11 @@ export function createJournalView(document) {
     $("resultContext").textContent =
       `${r.progression} · ${r.personality} · ${r.route} route · depth ${r.depth} · seed ${r.seed}. Player: ${r.playerStats.maxHp} HP, ${r.playerStats.power} DPS, ${r.playerStats.regen} regen, ${r.playerStats.maxCharges} charges, ${r.playerStats.maxPotions} potions. Quiet time means no living enemies. Scripted leaders are outside Director fuel.`;
     const samples = j.liveSample ? [...j.samples, j.liveSample] : j.samples;
-    const geometry = timelineGeometry(samples, j.entries, r.playerStats.maxHp);
+    const geometry = timelineGeometry(
+      samples,
+      j.timelineEntries,
+      r.playerStats.maxHp,
+    );
     $("timelineHealth").setAttribute("d", geometry.health);
     $("timelinePressure").setAttribute("d", geometry.pressure);
     $("timelineMarks").innerHTML = geometry.markers
@@ -55,6 +59,7 @@ export function createJournalView(document) {
       fuel: ["fuel"],
       encounters: ["director", "arrival", "room"],
       player: [
+        "combat-summary",
         "burst",
         "potion",
         "health",
