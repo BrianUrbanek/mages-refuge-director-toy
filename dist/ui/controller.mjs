@@ -41,7 +41,10 @@ export function mountRefuge(document, window) {
     paint: (dt) => {
       const scene = sim.sceneSnapshot(),
         projection = arena.render(scene, dt * clock.speed);
-      crowd.render(scene, dt, projection);
+      renderer.renderArena(projection.scene.arena, {
+        crossing: projection.phase !== "idle",
+      });
+      crowd.render(projection.scene, dt, projection);
     },
     refresh,
   });

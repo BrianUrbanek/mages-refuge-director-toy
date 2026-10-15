@@ -109,7 +109,7 @@ selection-golden-vector.json records a language-neutral twelve-draw example.
 VERIFICATION
 selection-tests.mjs:33 selector/shared/default-mode tests. budget-tests.mjs:12
 current total-budget tests. Extracted runner:87 cases plus core syntax. Full
-runner:258 cases plus runtime syntax. See check-suites.mjs for scope/purpose.
+runner:265 cases plus runtime syntax. See check-suites.mjs for scope/purpose.
 The latest audited extraction includes the shared inventory/executor dependencies.
 verify-v13 checks actual demo recipes/seals; verify-v17 checks boss integration.
 Boss timer/combat/glow do not belong in extracted selection code.

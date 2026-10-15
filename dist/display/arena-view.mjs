@@ -1,4 +1,4 @@
-import { RoomTransition } from "./room-transition.mjs";
+import { SceneTimeline } from "./scene-timeline.mjs";
 import { floorTheme, FLOOR_IMAGES } from "./floor-themes.mjs";
 /** Cosmetic DOM/scene adapter; owns no game controls or simulation decisions. */
 export class ArenaView {
@@ -20,7 +20,7 @@ export class ArenaView {
       floorLabel,
       reducedMotion,
     });
-    this.motion = new RoomTransition();
+    this.motion = new SceneTimeline();
     this.zone = null;
     // Preload independently of encounter assets/readiness.
     this.preloads = FLOOR_IMAGES.map((src) => {
@@ -44,7 +44,7 @@ export class ArenaView {
       : fallback;
   }
   render(scene, dt) {
-    const state = this.motion.update(scene.location, dt, {
+    const state = this.motion.update(scene, dt, {
       front: this.anchor(this.front, { x: 0.86, y: 0.7 }),
       rear: this.anchor(this.rear, { x: 0.14, y: 0.7 }),
       reducedMotion: this.reducedMotion(),

@@ -52,12 +52,6 @@ export function createRenderer(document) {
         : running
           ? "ASSAULT ACTIVE"
           : "PAUSED";
-    $("location").textContent =
-      toy.areaDef.name +
-      " · Chamber " +
-      (toy.sub + 1) +
-      " / " +
-      toy.areaDef.parts.length;
     $("keyCount").textContent = `${store.keys} / 5`;
     $("sanctum").disabled = store.keys < 5 || !store.final || toy.sanctum;
     $("potential").textContent = fmt(toy.potential);
@@ -80,8 +74,6 @@ export function createRenderer(document) {
       .join(" → ");
     $("selectionStatus").textContent =
       `Next draws: ${toy.selectionMode} · committed: ${toy.next?.selection?.kind ?? "final spend"} (${toy.next?.selection?.mode ?? "cleanup"}) · cycle ${toy.director.selection?.cycle ?? 0} · ${toy.director.selection?.remaining.length ?? 0} cards left`;
-    $("enemyCount").textContent =
-      `${toy.actors.length} defenders alive · ${toy.actors.filter((e) => e.originVolume && e.originVolume !== toy.current.id).length} pursuing from behind`;
     $("milestones").textContent =
       `${toy.volumes.filter((v) => v.state === "Finished").length} Finished`;
     $("portalHint").textContent =
@@ -109,7 +101,6 @@ export function createRenderer(document) {
         })
         .join(""),
     );
-    $("localTitle").textContent = toy.current.name;
     $("zoneTitle").textContent =
       toy.areaDef.name +
       " · " +
@@ -195,78 +186,6 @@ export function createRenderer(document) {
           toy.earned +
           " Keystones earned"
         : "";
-    toy.entrances.forEach((e) => {
-      const el = $("entrance-" + e.slot),
-        incoming =
-          toy.dispatch?.entrance === e.id && toy.director.fundingEta !== 0,
-        state = incoming ? "incoming" : e.open ? "open" : "sealed",
-        prior = portalStates.get(e.id);
-      if (prior === false && e.open) {
-        el.classList.remove("just-opened");
-        void el.offsetWidth;
-        el.classList.add("just-opened");
-      }
-      portalStates.set(e.id, e.open);
-      el.style.left = e.position.x * 100 + "%";
-      el.style.top = e.position.y * 100 + "%";
-      el.style.bottom = "auto";
-      el.classList.toggle(
-        "forecast-bright",
-        incoming && Math.floor(toy.t / 0.18) % 2 === 0,
-      );
-      el.classList.toggle(
-        "arriving",
-        toy.effects.some(
-          (f) =>
-            f.type === "arrival" &&
-            f.portalId === e.id &&
-            toy.t - f.time < 0.35,
-        ),
-      );
-      el.classList.toggle("blocked", !e.open);
-      el.classList.toggle("warn", incoming);
-      el.dataset.state = state;
-      const eligible =
-        e.enabled !== false && (e.open || e.breachable) && (!p || e.eligible);
-      el.dataset.eligible = String(eligible);
-      el.querySelector(".door-icon").src =
-        "assets/icons/door-" + (e.open ? "open" : "closed") + ".svg";
-      el.querySelector(".door-state").textContent = incoming
-        ? toy.director.fundingEta === 0
-          ? "Funded · awaiting engine"
-          : "Incoming " +
-            Math.max(0, toy.dispatch.until - toy.t).toFixed(1) +
-            "s"
-        : !e.open
-          ? "Sealed"
-          : eligible
-            ? "Open"
-            : "Open · busy";
-      el.title =
-        e.name +
-        " · " +
-        e.tags.join(", ") +
-        " · " +
-        (eligible ? "available for arrival" : "unavailable for arrival");
-      el.setAttribute("aria-label", el.title);
-    });
-    $("warning").textContent = toy.dispatch
-      ? `${toy.director.fundingEta === 0 ? "FUNDED · " + toy.wait.toUpperCase() : "PASSIVE ARRIVAL IN " + Math.max(0, toy.dispatch.until - toy.t).toFixed(1) + "s"} · ${toy.entrances.find((e) => e.id === toy.dispatch.entrance).name}`
-      : toy.pending
-        ? "TRIGGER PENDING · " + (toy.wait || "checking dispatch")
-        : "";
-    $("empty").style.display = toy.actors.length ? "none" : "block";
-    $("empty").innerHTML = toy.ended
-      ? "The Refuge yields.<small>Unused fuel was recorded. Only earned rewards were banked.</small>"
-      : toy.failed
-        ? "Pressure won this round.<small>Start a new run, rest before the next door, or invite less overlap.</small>"
-        : toy.t === 0
-          ? "The Refuge is waiting.<small>Begin the assault to see its finite opposition unfold.</small>"
-          : toy.finalDefeated && toy.sweepComplete
-            ? "Victory. Return to Traveler’s Rest.<small>The final budget was spent; sub-cheapest residue is recorded as unused.</small>"
-            : toy.canSafe
-              ? "A moment to breathe.<small>Residual fuel and the prepared group remain. Choose the next door.</small>"
-              : "A lull is not a clear.<small>The Director is waiting for fuel, engine recovery, or a legal entrance.</small>";
     $("planId").textContent = p ? "#" + p.id : "—";
     $("planMenu").textContent = p
       ? toy.rosterMenus[p.menu].name
@@ -404,9 +323,97 @@ export function createRenderer(document) {
     );
   }
 
+  function renderArena(toy, { crossing = false } = {}) {
+    $("location").textContent =
+      toy.areaDef.name +
+      " · Chamber " +
+      (toy.sub + 1) +
+      " / " +
+      toy.areaDef.parts.length;
+    $("enemyCount").textContent =
+      `${toy.actors.length} defenders alive · ${toy.actors.filter((e) => e.originVolume && e.originVolume !== toy.current.id).length} pursuing from behind`;
+    $("localTitle").textContent = toy.current.name;
+    toy.entrances.forEach((e) => {
+      const el = $("entrance-" + e.slot),
+        incoming = toy.dispatch?.entrance === e.id,
+        state = incoming ? "incoming" : e.open ? "open" : "sealed",
+        prior = portalStates.get(e.id);
+      if (prior === false && e.open) {
+        el.classList.remove("just-opened");
+        void el.offsetWidth;
+        el.classList.add("just-opened");
+      }
+      portalStates.set(e.id, e.open);
+      el.style.left = e.position.x * 100 + "%";
+      el.style.top = e.position.y * 100 + "%";
+      el.style.bottom = "auto";
+      el.classList.toggle(
+        "forecast-bright",
+        incoming &&
+          toy.director.fundingEta !== 0 &&
+          Math.floor(toy.t / 0.18) % 2 === 0,
+      );
+      el.classList.toggle(
+        "arriving",
+        toy.effects.some(
+          (f) =>
+            f.type === "arrival" &&
+            f.portalId === e.id &&
+            toy.t - f.time < 0.35,
+        ),
+      );
+      el.classList.toggle("blocked", !e.open);
+      el.classList.toggle("warn", incoming);
+      el.dataset.state = state;
+      const eligible =
+        e.enabled !== false &&
+        (e.open || e.breachable) &&
+        (!toy.hasPlan || e.eligible);
+      el.dataset.eligible = String(eligible);
+      el.querySelector(".door-icon").src =
+        "assets/icons/door-" + (e.open ? "open" : "closed") + ".svg";
+      el.querySelector(".door-state").textContent = incoming
+        ? toy.director.fundingEta === 0
+          ? "Funded · awaiting engine"
+          : "Incoming " +
+            Math.max(0, toy.dispatch.until - toy.t).toFixed(1) +
+            "s"
+        : !e.open
+          ? "Sealed"
+          : eligible
+            ? "Open"
+            : "Open · busy";
+      el.title =
+        e.name +
+        " · " +
+        e.tags.join(", ") +
+        " · " +
+        (eligible ? "available for arrival" : "unavailable for arrival");
+      el.setAttribute("aria-label", el.title);
+    });
+    $("warning").textContent = toy.dispatch
+      ? `${toy.director.fundingEta === 0 ? "FUNDED · " + toy.wait.toUpperCase() : "PASSIVE ARRIVAL IN " + Math.max(0, toy.dispatch.until - toy.t).toFixed(1) + "s"} · ${toy.entrances.find((e) => e.id === toy.dispatch.entrance).name}`
+      : toy.pending
+        ? "TRIGGER PENDING · " + (toy.wait || "checking dispatch")
+        : "";
+    $("empty").style.display = crossing || toy.actors.length ? "none" : "block";
+    $("empty").innerHTML = toy.ended
+      ? "The Refuge yields.<small>Unused fuel was recorded. Only earned rewards were banked.</small>"
+      : toy.failed
+        ? "Pressure won this round.<small>Start a new run, rest before the next door, or invite less overlap.</small>"
+        : toy.t === 0
+          ? "The Refuge is waiting.<small>Begin the assault to see its finite opposition unfold.</small>"
+          : toy.finalDefeated && toy.sweepComplete
+            ? "Victory. Return to Traveler’s Rest.<small>The final budget was spent; sub-cheapest residue is recorded as unused.</small>"
+            : toy.canSafe
+              ? "A moment to breathe.<small>Residual fuel and the prepared group remain. Choose the next door.</small>"
+              : "A lull is not a clear.<small>The Director is waiting for fuel, engine recovery, or a legal entrance.</small>";
+  }
+
   let rosterKey = "";
   return {
     render,
+    renderArena,
     renderRoster: (toy, roster) => {
       const key = roster + toy.depth + toy.personality;
       if (key !== rosterKey) {

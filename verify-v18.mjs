@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { RoomTransition } from "./dist/display/room-transition.mjs";
+import { SceneTimeline } from "./dist/display/scene-timeline.mjs";
 import { RefugeSimulation } from "./dist/game/refuge-simulation.mjs";
 import { EncounterManager } from "./dist/core/encounter-manager.mjs";
 import { fixture } from "./core-fixture.mjs";
@@ -15,64 +15,14 @@ const room = (id, zoneId = "a") => ({
   roomName: "Room " + id,
   zoneName: "Floor " + zoneId,
 });
-test("room motion reaches front gate, vanishes, re-enters rear and returns to center", () => {
-  const motion = new RoomTransition();
-  motion.update(room(0), 0);
-  let state = motion.update(room(1), 0.55);
-  assert.equal(state.phase, "hidden");
-  assert.equal(state.traveler.opacity, 0);
-  assert.equal(state.traveler.x, 0.86);
-  state = motion.update(room(1), 0.12);
-  assert.equal(state.phase, "entering");
-  assert.ok(Math.abs(state.traveler.x - 0.14) < 1e-8);
-  state = motion.update(room(1), 0.65);
-  assert.equal(state.phase, "idle");
-  assert.deepEqual(state.traveler, { x: 0.5, y: 0.57, opacity: 1 });
-});
-test("background location switches at rear re-entry rather than on exit", () => {
-  const motion = new RoomTransition();
-  motion.update(room(0), 0);
-  let s = motion.update(room(0, "c"), 0.3);
-  assert.equal(s.location.zoneId, "a");
-  s = motion.update(room(0, "c"), 0.4);
-  assert.equal(s.location.zoneId, "c");
-  assert.ok(s.floorChanged);
-});
-test("reduced motion changes rooms immediately without hiding or moving the symbol", () => {
-  const motion = new RoomTransition();
-  motion.update(room(0), 0);
-  const s = motion.update(room(1), 0, { reducedMotion: true });
-  assert.equal(s.phase, "idle");
-  assert.equal(s.location.roomId, "a:1");
-  assert.deepEqual(s.traveler, { x: 0.5, y: 0.57, opacity: 1 });
-});
-test("rapid door requests coalesce to newest room without a stale animation queue", () => {
-  const motion = new RoomTransition();
-  motion.update(room(0), 0);
-  motion.update(room(1), 0.2);
-  motion.update(room(2), 0.2);
-  const s = motion.update(room(3, "c"), 1);
-  assert.equal(s.location.roomId, "c:3");
-  assert.equal(s.phase, "idle");
-});
-test("reset removes any unfinished journey before a new run", () => {
-  const motion = new RoomTransition();
-  motion.update(room(0), 0);
-  motion.update(room(1), 0.2);
-  motion.reset();
-  const s = motion.update(room(0, "entry"), 0);
-  assert.equal(s.phase, "idle");
-  assert.equal(s.location.zoneId, "entry");
-  assert.equal(s.floorChanged, false);
-});
 test("display travel and mutation of scene metadata cannot change simulation", () => {
   const sim = new RefugeSimulation({ autoAdvance: false }),
-    motion = new RoomTransition();
+    motion = new SceneTimeline();
   const scene = sim.sceneSnapshot(),
     before = sim.exportTrace();
-  motion.update(scene.location, 0);
+  motion.update(scene, 0);
   scene.location.roomName = "Changed";
-  motion.update(room(1), 2);
+  motion.update({ ...scene, location: room(1) }, 2);
   assert.deepEqual(sim.exportTrace(), before);
 });
 const adapter = {

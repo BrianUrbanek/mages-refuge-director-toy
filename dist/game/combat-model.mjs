@@ -82,7 +82,10 @@ export class CombatModel {
     this.actors = this.actors.filter((a) => a !== actor);
     if (!this.actors.length) this.emergencyBurstPending = false;
     this.kills++;
-    this.effect("death", { actorId: actor.id });
+    this.effect("death", {
+      actorId: actor.id,
+      actor: { ...actor, position: { ...actor.position } },
+    });
     if (actor.leader) this.refillPotion("scripted-leader", actor.id);
     else if (this.potions < this.maxPotions) {
       this.potionProgress += actor.cost;
@@ -228,12 +231,14 @@ export class CombatModel {
     }
     let remaining = this.power * this.pulseInterval * (boosted ? 4 : 1),
       actor = this.target(),
-      from = { x: 0.5, y: 0.57 };
+      from = { x: 0.5, y: 0.57 },
+      fromActorId = null;
     while (actor && remaining > 1e-7) {
       const point = { ...actor.position },
         damage = Math.min(remaining, actor.hp);
       this.effect("attack", {
         actorId: actor.id,
+        fromActorId,
         from: { ...from },
         to: point,
         boosted,
@@ -242,6 +247,7 @@ export class CombatModel {
       remaining -= damage;
       if (actor.hp > 0) break;
       from = point;
+      fromActorId = actor.id;
       actor = this.targetPool().sort((a, b) => a.hp - b.hp || a.id - b.id)[0];
     }
   }

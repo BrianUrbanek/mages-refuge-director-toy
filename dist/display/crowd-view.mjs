@@ -1,3 +1,4 @@
+import { actorPosition, effectVisible } from "./actor-geometry.mjs";
 /** Presentation only. Receives detached snapshots; never imports or mutates the encounter manager. */
 export class CrowdView {
   constructor(canvas, onSelect, { colorForActor = () => "#83b9c4" } = {}) {
@@ -33,6 +34,11 @@ export class CrowdView {
     this.snapshot = null;
   }
   render(snapshot, dt, projection = {}) {
+    if (projection.sceneChanged) {
+      this.positions.clear();
+      this.lastActors.clear();
+      this.ghosts = [];
+    }
     this.snapshot = snapshot;
     const c = this.canvas,
       r = c.getBoundingClientRect(),
@@ -61,13 +67,30 @@ export class CrowdView {
         this.positions.delete(id);
       }
     this.lastActors = new Map(snapshot.actors.map((a) => [a.id, a]));
+    // A unit killed by the arrival pulse can disappear before the first paint.
+    // Its death event still supplies a visible endpoint and a brief marker.
+    for (const e of snapshot.effects)
+      if (
+        e.type === "death" &&
+        e.actor &&
+        effectVisible(e, snapshot.time, 0.35) &&
+        !this.ghosts.some((g) => g.actor?.id === e.actor.id)
+      )
+        this.ghosts.push({
+          actor: e.actor,
+          position: actorPosition(e.actor),
+          time: e.time,
+        });
     this.ghosts = this.ghosts.filter(
       (g) => snapshot.time >= g.time && snapshot.time - g.time < 0.35,
     );
     for (const g of this.ghosts) {
       if (!g.actor) continue;
       const age = (snapshot.time - g.time) / 0.35,
-        size = 12 * (1 + age);
+        size =
+          24 *
+          Math.max(0.5, Math.min(2, Math.sqrt(g.actor.cost / 2.5))) *
+          (1 + age);
       ctx.globalAlpha = 1 - age;
       ctx.fillStyle = this.colorForActor(g.actor);
       ctx.fillRect(
@@ -78,14 +101,7 @@ export class CrowdView {
       );
       ctx.globalAlpha = 1;
     }
-    for (const a of snapshot.actors) {
-      const t = Math.min(1, a.age / 0.6),
-        start = a.spawnPoint ?? a.position;
-      this.positions.set(a.id, {
-        x: start.x + (a.position.x - start.x) * t,
-        y: start.y + (a.position.y - start.y) * t,
-      });
-    }
+    for (const a of snapshot.actors) this.positions.set(a.id, actorPosition(a));
     // Soft separation creates a scrum without modifying combat or logical spawn safety.
     const items = [...this.positions];
     for (let i = 0; i < items.length; i++)
@@ -185,21 +201,38 @@ export class CrowdView {
         ctx.stroke();
       }
     }
+    let beamEnd = null,
+      beamTime = null;
     for (const e of snapshot.effects) {
       const age = snapshot.time - e.time;
-      if (e.type === "attack" && age < 0.25) {
+      if (e.type === "attack" && effectVisible(e, snapshot.time, 0.25)) {
         ctx.strokeStyle = e.boosted ? "#8cecf2" : "#fce2a6";
         ctx.lineWidth = e.boosted ? 3 : 2;
         ctx.globalAlpha = 1 - age / 0.25;
         ctx.beginPath();
         const origin =
-          e.from.x === 0.5 && e.from.y === 0.57 ? traveler : e.from;
+          e.fromActorId == null
+            ? traveler
+            : (this.positions.get(e.fromActorId) ??
+              this.ghosts.find((g) => g.actor?.id === e.fromActorId)
+                ?.position ??
+              (beamTime === e.time && beamEnd ? beamEnd : e.from));
+        const target =
+          this.positions.get(e.actorId) ??
+          this.ghosts.find((g) => g.actor?.id === e.actorId)?.position ??
+          e.to;
+        beamEnd = target;
+        beamTime = e.time;
         ctx.moveTo(origin.x * w, origin.y * h);
-        ctx.lineTo(e.to.x * w, e.to.y * h);
+        ctx.lineTo(target.x * w, target.y * h);
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
-      if (e.type === "burst" && age < 0.8) {
+      if (
+        e.type === "burst" &&
+        effectVisible(e, snapshot.time, 0.8) &&
+        traveler.opacity !== 0
+      ) {
         ctx.strokeStyle = "#8cecf2";
         ctx.lineWidth = 3;
         ctx.globalAlpha = 1 - age / 0.8;
@@ -208,15 +241,19 @@ export class CrowdView {
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
-      if (e.type === "recover" && age < 1) {
+      if (e.type === "recover" && effectVisible(e, snapshot.time, 1)) {
         ctx.strokeStyle = "#a3e6ae";
         ctx.globalAlpha = 1 - age;
         ctx.beginPath();
-        ctx.arc(w * 0.5, h * 0.57, 25 + age * 35, 0, Math.PI * 2);
+        ctx.arc(w * traveler.x, h * traveler.y, 25 + age * 35, 0, Math.PI * 2);
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
-      if (this.showNumbers && e.type === "hit" && age < 0.65) {
+      if (
+        this.showNumbers &&
+        e.type === "hit" &&
+        effectVisible(e, snapshot.time, 0.65)
+      ) {
         const p = this.positions.get(e.actorId);
         if (p) {
           ctx.fillStyle = "#fff6da";

@@ -2,7 +2,7 @@ MAGE'S REFUGE ENGINEERING ENTRY -- CURRENT V18, 14 October 2026
 Canonical runtime: dist, buildless ES modules. See DIRECTOR-PORT-GUIDE.txt and
 SELECTION-PORT-GUIDE.txt for extraction/data/adapter/C# translation guidance.
 Workspace docs/PROJECT-ENTRY.txt routes game/display/UI/telemetry changes.
-Current full checks: run-checks.mjs (258 cases + runtime syntax).
+Current full checks: run-checks.mjs (265 cases + runtime syntax).
 Director-only: run-director-checks.mjs (87 cases + core syntax).
 Both use check-suites.mjs and run-check-suites.mjs; include these in a handout.
 

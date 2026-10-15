@@ -99,3 +99,30 @@ export function createViewState(sim) {
     results: sim.runMetrics(),
   });
 }
+
+/** Small detached arena model; controls and inspector remain on current host state. */
+export function createArenaState(sim) {
+  const director = sim.manager.snapshot();
+  return {
+    t: sim.t,
+    current: sim.current(),
+    sub: sim.sub,
+    areaDef: sim.areaDef(),
+    actors: sim.actors,
+    effects: sim.effects.filter((e) => e.roomId === sim.current().id),
+    hasPlan: !!sim.next,
+    entrances: sim.entrances.map((p) => ({
+      ...p,
+      eligible: !sim.next || sim.canEnter(sim.next, p.id),
+    })),
+    director: { fundingEta: director.fundingEta },
+    dispatch: sim.dispatch,
+    pending: sim.pending,
+    wait: sim.wait,
+    ended: sim.ended,
+    failed: sim.failed,
+    finalDefeated: sim.finalDefeated,
+    sweepComplete: sim.sweepComplete,
+    canSafe: sim.canSafe(),
+  };
+}

@@ -1,6 +1,15 @@
 import { APP_VERSION } from "../version.mjs";
 const releases = [
   [
+    19,
+    "A coherent arena",
+    [
+      "Rooms, doors, enemies and effects share a short visual replay, so new-room waves appear at rear-arch re-entry.",
+      "Attack beams follow visible enemies. Funded waves waiting for the engine are shown on their door.",
+      "The arena trails live controls by at most 0.67 presentation seconds; simulation funding and combat are unchanged.",
+    ],
+  ],
+  [
     18,
     "Finding your way",
     [

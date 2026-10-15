@@ -1,0 +1,15 @@
+V19 -- Visualization correctness, 14 October 2026
+Arena scenes, room labels, doors, enemies and effects now share a bounded replay.
+The exact cleared departure remains visible during front-gate exit; the next room
+is revealed at rear-arch re-entry. Arena replay trails live host controls by
+0.67 presentation seconds (0.1675 wall seconds at 4x), with reduced motion snapping
+all layers immediately. Pause drains pending presentation then freezes combat.
+Beams hit rendered blocks and spill to rendered targets; death metadata preserves
+arrival-pulse kills. Scripted leaders have stable spawn anchors. Funded warnings
+show engine waiting without a passive blink. Reset clears arena history/ghosts.
+Director/funding/combat rules unchanged; no extra gameplay gates. Exact departure,
+death and arena read models are detached observational data only.
+Obsolete independent V18 travel class and five tests removed. Its source/previous
+checks remain frozen in V18 archives; V19 tests cover integrated scene timing.
+265 total current checks plus syntax; 87 independently extractable Director cases.
+C# and real Last Epoch integration remain untested.

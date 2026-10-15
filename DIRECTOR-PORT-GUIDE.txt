@@ -158,7 +158,7 @@ inside callbacks or concurrently with fuel commitment.
 Validation and portable vectors
 -------------------------------
 node run-director-checks.mjs: current 87 cases and core syntax, no game/UI/display.
-node run-checks.mjs: current 258 cases and runtime module syntax.
+node run-checks.mjs: current 265 cases and runtime module syntax.
 Single inventory: check-suites.mjs; executor: run-check-suites.mjs.
 Include both files with the extraction runner, suites, core fixture and vectors.
 Latest handout: outputs/encounter-director-v17-audit-20261014-engineering.zip

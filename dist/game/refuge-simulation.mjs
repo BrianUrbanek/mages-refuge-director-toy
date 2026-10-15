@@ -1,6 +1,6 @@
 import { RunJournal } from "../telemetry/run-journal.mjs";
 import { formatJournalLog } from "../telemetry/journal-log.mjs";
-import { createViewState } from "./view-state.mjs";
+import { createViewState, createArenaState } from "./view-state.mjs";
 import { createRandom } from "./random.mjs";
 import { ZoneHost } from "./zone-host.mjs";
 import { CombatModel } from "./combat-model.mjs";
@@ -321,7 +321,12 @@ export class RefugeSimulation {
         data,
         this.context(),
       );
-    this.effects.push({ type, time: this.t, ...data });
+    this.effects.push({
+      type,
+      time: this.t,
+      roomId: this.current().id,
+      ...data,
+    });
     this.effects = this.effects.slice(-150);
   }
   consumeEvents() {
@@ -387,6 +392,7 @@ export class RefugeSimulation {
     return canSpawnAtPortal(this, plan, id);
   }
   enter(area, index, cause) {
+    const departure = this.sceneSnapshot({ includeDeparture: false });
     const config = configFor(
       AREAS.find((a) => a.id === area).menu,
       this.personality,
@@ -397,6 +403,7 @@ export class RefugeSimulation {
     if (!this.zone.enter(area, index, this.manager, config, cause, this.t))
       return false;
     this.area = area;
+    this.departureScene = departure;
     this.sub = index;
     this.enteredAt = this.t;
     this.entrances = this.zone.portals;
@@ -442,6 +449,7 @@ export class RefugeSimulation {
       originVolume: this.current().id,
       entrance: "stage",
       position: this.spawnPosition("stage"),
+      spawnPoint: this.spawnPosition("stage"),
       age: 0,
       footprint: 3,
       ...metadata,
@@ -885,8 +893,9 @@ export class RefugeSimulation {
   viewState() {
     return createViewState(this);
   }
-  sceneSnapshot() {
+  sceneSnapshot({ includeDeparture = true } = {}) {
     return structuredClone({
+      departure: includeDeparture ? (this.departureScene ?? null) : null,
       location: {
         roomId: this.current().id,
         zoneId: this.area,
@@ -894,8 +903,9 @@ export class RefugeSimulation {
         roomName: this.current().name,
       },
       time: this.t,
+      arena: createArenaState(this),
       actors: this.actors,
-      effects: this.effects,
+      effects: this.effects.filter((e) => e.roomId === this.current().id),
       selected: this.selected,
     });
   }

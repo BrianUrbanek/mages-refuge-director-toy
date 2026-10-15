@@ -83,7 +83,12 @@ export const CHECK_SUITES = Object.freeze([
   {
     file: "verify-v18.mjs",
     scope: "host",
-    coverage: "display-only room travel and six-second warning boundaries",
+    coverage: "detached scene metadata and six-second warning boundaries",
+  },
+  {
+    file: "verify-v19.mjs",
+    scope: "host",
+    coverage: "ordered arena replay, departure, effect geometry and instant deaths",
   },
   {
     file: "director-conformance.mjs",
